@@ -104,6 +104,14 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		GrabModeAsync,
 		GrabModeAsync
 	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_F),
+		Mod1Mask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
 }
 void unframe(window_manager* wm, Window w){
 	Window frame = wm->clients_[w&4095];
@@ -154,6 +162,17 @@ void run_wm(window_manager* wm){
 			GrabModeAsync,
 			GrabModeAsync
 		);
+	// Reset windows to last display
+	XGrabKey(wm->display_,
+			XKeysymToKeycode(wm->display_, XK_R),
+			Mod1Mask,
+			wm->root_,
+			FALSE,
+			GrabModeAsync,
+			GrabModeAsync
+		);
+
+	log_msg(wm->log, "Entering main loop");
 	// Main Event Loop
 	for(;;){
 		XEvent main_event;
@@ -170,18 +189,23 @@ void run_wm(window_manager* wm){
 			break;
 			case ConfigureRequest:{
 				XConfigureRequestEvent* e = &(main_event.xconfigurerequest);
-				XWindowChanges changes;
-				changes.x = e->x;
-				changes.y = e->y;
-				changes.width = e->width;
-				changes.height = e->height;
-				changes.border_width = e->border_width;
-				changes.sibling = e->above;
-				changes.stack_mode = e->detail;
+				XWindowChanges frame_changes;
+				frame_changes.x = e->x;
+				frame_changes.y = e->y;
+				frame_changes.width = e->width;
+				frame_changes.height = e->height;
+				frame_changes.border_width = e->border_width;
+				frame_changes.sibling = e->above;
+				frame_changes.stack_mode = e->detail;
+
+				XWindowChanges window_changes = frame_changes;
+				window_changes.x = 0;
+				window_changes.y = 0;
 
 				if(wm->clients_[e->window&4095] != 0){
 					Window frame = wm->clients_[e->window&4095];
-					XConfigureWindow(wm->display_, frame, e->value_mask, &changes);
+					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
+					XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
 				}
 			}
 			break;
@@ -239,6 +263,10 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		Window w = e->window;
 		printf("Window %d accessed\n", w);
 		XKillClient(wm->display_, e->window);
+	}
+	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
+		Window w = e->window;
+		XMoveResizeWindow(wm->display_, w, 0, 0, wm->workspace->info.max_width, wm->workspace->info.max_height);
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
 		int i = e->window;
