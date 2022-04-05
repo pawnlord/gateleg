@@ -4,6 +4,7 @@
 FILE* main_log;
 
 bool wm_detected_;
+void tile_windows(window_manager* wm);
 
 int create_window_manager(window_manager* wm){
 	Display* display = XOpenDisplay(NULL);
@@ -48,7 +49,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned long BG_COLOR = 0x0000FF;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
-	window_layout* l = add_window(wm->workspace, w&4095);
+	window_layout* l = add_window(wm->workspace, w);
 
 
 	if(is_before_wm_created){
@@ -266,7 +267,11 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
 		Window w = e->window;
-		XMoveResizeWindow(wm->display_, w, 0, 0, wm->workspace->info.max_width, wm->workspace->info.max_height);
+		XResizeWindow(wm->display_, w, wm->workspace->info.max_width, wm->workspace->info.max_height);
+		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
+	}
+	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
+		tile_windows(wm);
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
 		int i = e->window;
@@ -283,3 +288,19 @@ int handle_button_press(window_manager* wm, XButtonEvent* e){
 	log_msg(wm->log, "handling button press\n");
 }
 
+void tile_windows(window_manager* wm){
+	ws_layout* workspace = wm->workspace;
+	for(int i = 0; i < workspace->window_count; i++){
+		Window w = workspace->layouts[i].xid;
+		window_layout* lo = workspace->layouts+i;
+		if(wm->clients_[w&4095] != 0){
+			char* temp = malloc(100);
+			memset(temp, 0, 100);
+			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
+			log_msg(wm->log, temp);
+			free(temp);
+			XResizeWindow(wm->display_, w, lo->width, lo->height);
+			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x, lo->y);
+		}
+	}
+}
