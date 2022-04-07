@@ -15,6 +15,7 @@ typedef struct {
 	Window root_;
 	Window* clients_;
 	ws_layout* workspace;
+	Window focus;
 	FILE* log;
 } window_manager;
 

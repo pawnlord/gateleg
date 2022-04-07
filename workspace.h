@@ -22,4 +22,6 @@ typedef struct {
 
 ws_layout* init_ws(ws_info info);
 window_layout* add_window(ws_layout* ws, int xid); // WARNING, will likely change window_layout* pointer
+void move_horiz(ws_layout* ws, int xid);
 
+void reset_positions(ws_layout* ws);

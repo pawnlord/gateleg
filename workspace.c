@@ -22,4 +22,38 @@ window_layout* add_window(ws_layout* ws, int xid){
 	return (ws->layouts)+i;
 }
 
+void move_horiz(ws_layout* ws, int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	int starting_quad = w->quad;
+	int is_right = w->quad%2;
 
+
+	if(is_right){
+		w->quad -= 1;
+	} else {
+		w->quad += 1;
+	}
+
+	for(int i = 0; i < ws->window_count; i++){
+		int temp_quad = ws->layouts[i].quad;
+		if(temp_quad == w->quad && ws->layouts[i].xid != xid){
+			ws->layouts[i].quad = starting_quad;
+		}
+	}
+	reset_positions(ws);
+}
+void reset_positions(ws_layout* ws){
+	for(int i = 0; i < ws->window_count; i++){
+		window_layout* w = ws->layouts+i;
+		int is_right = w->quad%2;
+		int is_down = w->quad>1;
+		ws->layouts[i].x = is_right * (ws->info.max_width/2);
+		ws->layouts[i].y = is_down * (ws->info.max_height/2);
+	}
+}

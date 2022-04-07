@@ -35,9 +35,10 @@ void init_window_manager(window_manager* wm, Display* display){
 	inf.max_width = XDisplayWidth(wm->display_, snum);
 	inf.max_height = XDisplayHeight(wm->display_, snum);
 	wm->workspace = init_ws(inf);
-
+	wm->focus = wm->root_;
 	main_log = wm->log;
 }
+
 
 void destroy_window_manager(window_manager* wm){
 	XCloseDisplay(wm->display_);
@@ -89,6 +90,17 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 			0,
 			0
 		);
+	XGrabButton(wm->display_,
+			Button1,
+			0,
+			w,
+			FALSE,
+			ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
+			GrabModeAsync,
+			GrabModeAsync,
+			0,
+			0
+		);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_J),
 		Mod1Mask,
@@ -113,6 +125,24 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		GrabModeAsync,
 		GrabModeAsync
 	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_Left),
+		Mod1Mask | ShiftMask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_Right),
+		Mod1Mask | ShiftMask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XSetInputFocus(wm->display_, w, RevertToPointerRoot, CurrentTime);
+	wm->focus = w;
 }
 void unframe(window_manager* wm, Window w){
 	Window frame = wm->clients_[w&4095];
@@ -121,6 +151,8 @@ void unframe(window_manager* wm, Window w){
 	XRemoveFromSaveSet(wm->display_, w);
 	XDestroyWindow(wm->display_, frame);
 	wm->clients_[w&4095] = 0;
+	wm->focus = wm->root_;
+	XSetInputFocus(wm->display_, wm->focus, RevertToPointerRoot, CurrentTime);
 }
 
 void run_wm(window_manager* wm){
@@ -172,12 +204,12 @@ void run_wm(window_manager* wm){
 			GrabModeAsync,
 			GrabModeAsync
 		);
-
 	log_msg(wm->log, "Entering main loop");
 	// Main Event Loop
 	for(;;){
 		XEvent main_event;
 		XNextEvent(wm->display_, &main_event);
+		XSetInputFocus(wm->display_, wm->focus, RevertToPointerRoot, CurrentTime);
 
 		switch(main_event.type){
 			case CreateNotify:{
@@ -222,6 +254,11 @@ void run_wm(window_manager* wm){
 				XMapRequestEvent* e = &(main_event.xmaprequest);
 				frame(wm, e->window, FALSE);
 				XMapWindow(wm->display_, e->window);
+				char* temp = malloc(100);
+				memset(temp, 0, 100);
+				sprintf(temp, "New Window: %d", e->window);
+				log_msg(wm->log, temp);
+				free(temp);
 			}
 			break;
 			case KeyPress:{
@@ -269,8 +306,14 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		Window w = e->window;
 		XResizeWindow(wm->display_, w, wm->workspace->info.max_width, wm->workspace->info.max_height);
 		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
+		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace->info.max_width, wm->workspace->info.max_height);
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
+		tile_windows(wm);
+	}
+	if(((e->state & (Mod1Mask | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
+	   || ((e->state & (Mod1Mask | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
+		move_horiz(wm->workspace, e->window);
 		tile_windows(wm);
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
@@ -281,10 +324,21 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		i%=4096;
 		XRaiseWindow(wm->display_, wm->clients_[i]);
 		XSetInputFocus(wm->display_, i, RevertToPointerRoot, CurrentTime);
+		wm->focus = i;
 	}
 	log_msg(wm->log, "handling key press\n");
 }
 int handle_button_press(window_manager* wm, XButtonEvent* e){
+	if(e->state == 0 && e->button == Button1){
+		Window w, dummy_w;
+		int *dummy;
+		XQueryPointer(wm->display_, wm->root_, &w, &dummy_w, dummy, dummy, dummy, dummy, dummy);
+		if(w != wm->focus){
+			wm->focus = w;
+		}
+		XRaiseWindow(wm->display_, wm->clients_[w&4095]);
+		XSetInputFocus(wm->display_, w, RevertToPointerRoot, CurrentTime);
+	}
 	log_msg(wm->log, "handling button press\n");
 }
 
@@ -300,6 +354,7 @@ void tile_windows(window_manager* wm){
 			log_msg(wm->log, temp);
 			free(temp);
 			XResizeWindow(wm->display_, w, lo->width, lo->height);
+			XResizeWindow(wm->display_, wm->clients_[w&4095], lo->width, lo->height);
 			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x, lo->y);
 		}
 	}
