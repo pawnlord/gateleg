@@ -16,8 +16,8 @@ window_layout* add_window(ws_layout* ws, int xid){
 	ws->layouts[i].quad = i%4;
 	ws->layouts[i].x = is_right * (ws->info.max_width/2);
 	ws->layouts[i].y = is_down * (ws->info.max_height/2);
-	ws->layouts[i].width = ws->info.max_width/2;
-	ws->layouts[i].height = ws->info.max_height/2;
+	ws->layouts[i].width = ws->info.max_width/2 - 10;
+	ws->layouts[i].height = ws->info.max_height/2 - 10;
 	ws->window_count += 1;
 	return (ws->layouts)+i;
 }
