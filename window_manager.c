@@ -110,8 +110,8 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		GrabModeAsync
 	);
 	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_K),
-		MODMASK,
+		XKeysymToKeycode(wm->display_, XK_Tab),
+		Mod1Mask,
 		w,
 		FALSE,
 		GrabModeAsync,
@@ -127,6 +127,14 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_H),
+		MODMASK,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_G),
 		MODMASK,
 		w,
 		FALSE,
@@ -481,6 +489,10 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		expand_horiz(wm->workspace, e->window);
 		tile_windows(wm);
 	}
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_G))){
+		reset_expansion(wm->workspace, e->window);
+		tile_windows(wm);
+	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_V))){
 		expand_vert(wm->workspace, e->window);
 		tile_windows(wm);
@@ -490,16 +502,21 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		move_vert(wm->workspace, e->window);
 		tile_windows(wm);
 	}
-	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
-		int i = e->window;
-		while(wm->clients_[(++i)%4096] == 0){
-			i%=4096;
-		}
-		i%=4096;
-		wm->focus = i;
-	}
 	XRaiseWindow(wm->display_, e->window);
 	XSetInputFocus(wm->display_, e->window, RevertToNone, CurrentTime);
+
+
+	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Tab))){
+		Window w = get_next(wm->workspace, e->window);
+		XRaiseWindow(wm->display_, w);
+		XSetInputFocus(wm->display_, w, RevertToNone, CurrentTime);
+		char* temp = malloc(100);
+		memset(temp, 0, 100);
+		sprintf(temp, "Next Window %d", w);
+		log_msg(wm->log, temp);
+		free(temp);
+	}
+
 	XGrabButton(wm->display_,
 		Button1,
 		None,

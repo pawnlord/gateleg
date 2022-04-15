@@ -1,4 +1,5 @@
 #include "workspace.h"
+#include <stdio.h>
 
 ws_layout* init_ws(ws_info info){
 	ws_layout* ws = malloc(sizeof(ws_layout));
@@ -7,7 +8,7 @@ ws_layout* init_ws(ws_info info){
 	ws->layouts = malloc(50*sizeof(window_layout));
 	return ws;
 }
-window_layout* add_window(ws_layout* ws, int xid){
+window_layout* add_window(ws_layout* ws, unsigned long int xid){
 	int i = ws->window_count;
 	int quad = i%4;
 	int is_right = quad%2;
@@ -22,7 +23,7 @@ window_layout* add_window(ws_layout* ws, int xid){
 	return (ws->layouts)+i;
 }
 
-void move_horiz(ws_layout* ws, int xid){
+void move_horiz(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
@@ -41,7 +42,6 @@ void move_horiz(ws_layout* ws, int xid){
 	}
 
 	w->width = ws->info.max_width/2;
-	w->height = ws->info.max_height/2;
 
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_quad = ws->layouts[i].quad;
@@ -51,7 +51,8 @@ void move_horiz(ws_layout* ws, int xid){
 	}
 	reset_positions(ws);
 }
-void move_vert(ws_layout* ws, int xid){
+
+void move_vert(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
@@ -69,7 +70,6 @@ void move_vert(ws_layout* ws, int xid){
 		w->quad += 2;
 	}
 
-	w->width = ws->info.max_width/2;
 	w->height = ws->info.max_height/2;
 
 
@@ -81,7 +81,8 @@ void move_vert(ws_layout* ws, int xid){
 	}
 	reset_positions(ws);
 }
-void expand_horiz(ws_layout* ws, int xid){
+
+void expand_horiz(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
@@ -110,7 +111,7 @@ void expand_horiz(ws_layout* ws, int xid){
 	reset_positions(ws);
 }
 
-void expand_vert(ws_layout* ws, int xid){
+void expand_vert(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
@@ -135,6 +136,49 @@ void expand_vert(ws_layout* ws, int xid){
 	}
 	reset_positions(ws);
 }
+
+void reset_expansion(ws_layout* ws, unsigned long int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	w->height = ws->info.max_height/2;
+	w->width = ws->info.max_width/2;
+}
+
+unsigned long int get_next(ws_layout* ws, unsigned long int xid){
+	window_layout* w;
+	int i;
+	for(i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	// get next to the left
+	int quad = w->quad + 1; // quadrant we're aiming for
+	int quads[4] = {-1};
+	int start = i;
+	// go backwards in the list, looping
+	i = (i-1+ws->window_count)%ws->window_count;
+	for(;i != start; i = (i-1+ws->window_count)%ws->window_count){
+		printf("%d\n", i);
+		window_layout* temp_w = ws->layouts+i;
+		int temp_q = (temp_w->quad - quad + 4) % 4;
+		quads[temp_q] = i;
+	}
+
+	for(int i = 0; i < 4; i++){
+		if(quads[i] != -1){
+			return ws->layouts[quads[i]].xid;
+		}
+	}
+	return 0;
+}
+
 void reset_positions(ws_layout* ws){
 	for(int i = 0; i < ws->window_count; i++){
 		window_layout* w = ws->layouts+i;
