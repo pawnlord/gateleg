@@ -4,6 +4,7 @@
 FILE* main_log;
 
 bool wm_detected_;
+bool pointer_initialized = FALSE;
 void tile_windows(window_manager* wm);
 
 int create_window_manager(window_manager* wm){
@@ -46,8 +47,8 @@ void destroy_window_manager(window_manager* wm){
 
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned int BORDER_WIDTH = 10;
-	static unsigned long BORDER_COLOR = 0xFF0000;
-	static unsigned long BG_COLOR = 0x0000FF;
+	static unsigned long BORDER_COLOR = 0x000000;
+	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
 	window_layout* l = add_window(wm->workspace, w);
@@ -158,28 +159,51 @@ void unframe(window_manager* wm, Window w){
 	wm->focus = wm->root_;
 	XSetInputFocus(wm->display_, wm->focus, RevertToNone, CurrentTime);
 }
-
-Window get_pointer_window(window_manager* wm){
+Window get_lowest_subwindow(window_manager* wm, Window parent){
 	Window tw, win;
-	int t;
-	do{
-		XQueryPointer(wm->display_, wm->root_, &tw, &win, &t, &t, &t, &t, &t);
-	} while(win<=0);
+	int t, n;
+	XQueryPointer(wm->display_, parent, &tw, &win, &t, &t, &t, &t, &t);
+	if(win == 0 || win == parent){
+		return parent;
+	} else return get_lowest_subwindow(wm, win);
+}
 
-	int n;
-	Window* wins;
-	XWindowAttributes watts;
-	XQueryTree(wm->display_, win, &tw, &tw, &wins, &n);
-	t = 0;
-	while(--n >= 0){
-		XGetWindowAttributes(wm->display_, wins[n], &watts);
-		if(watts.width * watts.height > t){
-			win = wins[n];
-			t = watts.width * watts.height;
+Window get_pointer_window(window_manager* wm, bool recursive){
+	if(pointer_initialized){
+		Window tw, win;
+		int t, n;
+		do{
+			XQueryPointer(wm->display_, wm->root_, &tw, &win, &t, &t, &t, &t, &t);
+		} while(win<=0);
+		Window* wins;
+		XWindowAttributes watts;
+		XQueryTree(wm->display_, win, &tw, &tw, &wins, &n);
+		XGetWindowAttributes(wm->display_, wm->root_, &watts);
+		t = 0;//watts.width * watts.height;
+		int full_n = n;
+		while(--n >= 0){
+			XGetWindowAttributes(wm->display_, wins[n], &watts);
+			if(watts.width * watts.height > t){
+				win = wins[n];
+				t = watts.width * watts.height;
+			}
 		}
+		XFree(wins);
+		return win;
 	}
-	XFree(wins);
-	return win;
+	return wm->root_;
+}
+Window get_pointer_subwindow(window_manager* wm){
+	if(pointer_initialized){
+		Window win;/*
+		int x, y, n, t;
+		do{
+			XQueryPointer(wm->display_, wm->root_, &tw, &win, &x, &y, &x, &y, &t);
+		} while(win<=0);*/
+		win = get_lowest_subwindow(wm, wm->root_);
+		return win;
+	}
+	return wm->root_;
 }
 void run_wm(window_manager* wm){
 	wm_detected_ = FALSE;
@@ -187,7 +211,7 @@ void run_wm(window_manager* wm){
 	XSelectInput(
 			wm->display_,
 			wm->root_,
-			SubstructureRedirectMask | SubstructureNotifyMask | FocusChangeMask
+			SubstructureRedirectMask | SubstructureNotifyMask
 		);
 	XSync(wm->display_, FALSE);
 	if(wm_detected_){
@@ -230,33 +254,30 @@ void run_wm(window_manager* wm){
 			GrabModeAsync,
 			GrabModeAsync
 		);
-	/*XGrabButton(wm->display_,
-			Button1,
-			0,
-			wm->root_,
-			FALSE,
-			ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
-			GrabModeAsync,
-			GrabModeAsync,
-			0,
-			0
-		);*/
+
 
 	log_msg(wm->log, "Entering main loop");
-	XGrabPointer(wm->display_,
+	/*XGrabPointer(wm->display_,
 			wm->root_,
 			FALSE,
-			ButtonReleaseMask | ButtonPressMask | PointerMotionMask | EnterWindowMask | LeaveWindowMask,
+			ButtonReleaseMask | ButtonPressMask | PointerMotionMask,
  			GrabModeAsync, GrabModeAsync,
 			None, None, CurrentTime);
-	// Main Event Loop
+	*/// Main Event Loop
 	for(;;){
 		XEvent main_event;
 		XNextEvent(wm->display_, &main_event);
 
 		switch(main_event.type){
 			case CreateNotify:{
+
+				log_msg(wm->log, "Create notify");
 				XCreateWindowEvent* e = &(main_event.xcreatewindow);
+				char* temp = malloc(100);
+				memset(temp, 0, 100);
+				sprintf(temp, "New Window: %d", e->window);
+				log_msg(wm->log, temp);
+				free(temp);
 			}
 			break;
 			case DestroyNotify:
@@ -294,6 +315,7 @@ void run_wm(window_manager* wm){
 			}
 			break;
 			case MapRequest:{
+				pointer_initialized = TRUE;
 				XMapRequestEvent* e = &(main_event.xmaprequest);
 				frame(wm, e->window, FALSE);
 				XMapWindow(wm->display_, e->window);
@@ -304,19 +326,36 @@ void run_wm(window_manager* wm){
 				free(temp);
 				XRaiseWindow(wm->display_, e->window);
 				XSetInputFocus(wm->display_, e->window, RevertToNone, CurrentTime);
+				XGrabButton(wm->display_,
+					Button1,
+					None,
+					wm->root_,
+					FALSE,
+					ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
+					GrabModeAsync,
+					GrabModeAsync,
+					None,
+					None
+				);
 			}
 			break;
 			case KeyPress:{
 				handle_key_press(wm, &(main_event.xkey));
 			}
 			break;
+			case FocusOut:
 			case FocusIn:{
+				log_msg(wm->log, "Focus event");
+				XFocusChangeEvent* e = &(main_event.xfocus);
+				if(!e->send_event){
+					XSendEvent(wm->display_, InputFocus, TRUE, None, (XEvent*)e);
+				}
 			}
 			break;
 			case MotionNotify: {
 				XMotionEvent* e = &(main_event.xmotion);
 				if(!e->send_event){
-					Window focus = get_pointer_window(wm);
+					Window focus = get_pointer_window(wm, FALSE);
 					e->window = focus;
 					XWindowAttributes watts;
 					XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
@@ -329,8 +368,19 @@ void run_wm(window_manager* wm){
 			case LeaveNotify:
 			case EnterNotify: {
 				XCrossingEvent* e = &(main_event.xcrossing);
+				char* temp = malloc(100);
+				memset(temp, 0, 100);
+				sprintf(temp, "enter/leave: %d, %d", wm->root_, e->window);
+				log_msg(wm->log, temp);
+				free(temp);
 				if(!e->send_event){
-					log_msg(wm->log, "enter/leave");
+					Window focus = get_pointer_window(wm, FALSE);
+					XWindowAttributes watts;
+					if(wm->clients_[focus&4095] != 0){
+						XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
+						e->x -= watts.x + watts.border_width;
+						e->y -= watts.y + watts.border_width;
+					}
 					XSendEvent(wm->display_, InputFocus, TRUE, None, (XEvent*)e);
 				}
 			}
@@ -340,6 +390,13 @@ void run_wm(window_manager* wm){
 			case ButtonRelease:{
 				handle_button_press(wm, &(main_event.xbutton));
 			}
+			break;
+			case KeymapNotify:
+				log_msg(wm->log, "Keymap notify");
+				XKeymapEvent* e = &(main_event.xkeymap);
+				if(!e->send_event){
+					XSendEvent(wm->display_, InputFocus, TRUE, None, (XEvent*)e);
+				}
 			break;
 			default:
 			//	printf("Ignoring Event (type: %d)...\n", main_event.type);
@@ -379,7 +436,6 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		XResizeWindow(wm->display_, w, wm->workspace->info.max_width, wm->workspace->info.max_height);
 		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
 		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace->info.max_width, wm->workspace->info.max_height);
-		XSendEvent(wm->display_, InputFocus, TRUE, None, (XEvent*)e);
 	}
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
 		tile_windows(wm);
@@ -402,24 +458,38 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 
 
 int handle_button_press(window_manager* wm, XButtonEvent* e){
-	Window focus = get_pointer_window(wm);
+	static Window last_focus = 0;
+	Window focus = get_pointer_window(wm, FALSE);
 	if(e->button == Button1 && e->type == ButtonPress){
-		XRaiseWindow(wm->display_, focus);
-		XSetInputFocus(wm->display_, focus, RevertToNone, CurrentTime);
+		/*if(focus != last_focus){
+			XRaiseWindow(wm->display_, focus);
+			XSetInputFocus(wm->display_, focus, RevertToNone, CurrentTime);
+		}*/
+		XSetInputFocus(wm->display_, wm->root_, RevertToNone, CurrentTime);
+		XUngrabButton(wm->display_,
+			Button1,
+			None,
+			wm->root_
+		);
 	}
 	if(!e->send_event){
+		Window subwindow = get_pointer_subwindow(wm);
 		e->window = focus;
-
+		e->subwindow = 0;
+		if(subwindow != focus){
+			e->subwindow = subwindow;
+		}
 		XWindowAttributes watts;
 		XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
 		e->x -= watts.x + watts.border_width;
 		e->y -= watts.y + watts.border_width;
-
+		log_msg(wm->log, "sending event");
 		XSendEvent(wm->display_, InputFocus, TRUE, None, (XEvent*)e);
 	} else {
 		log_msg(wm->log, "received sent event");
 	}
 	log_msg(wm->log, "handling button press");
+	last_focus = focus;
 }
 
 void tile_windows(window_manager* wm){

@@ -15,4 +15,5 @@ void log_msg(FILE* log, char* msg){
 	sprintf(final_msg, "[gataleg %s]: %s\n", time_str, msg);
 	fputs(final_msg, log);
 	free(final_msg);
+	fflush(log);;
 }
