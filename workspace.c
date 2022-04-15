@@ -16,8 +16,8 @@ window_layout* add_window(ws_layout* ws, int xid){
 	ws->layouts[i].quad = i%4;
 	ws->layouts[i].x = is_right * (ws->info.max_width/2);
 	ws->layouts[i].y = is_down * (ws->info.max_height/2);
-	ws->layouts[i].width = ws->info.max_width/2 - 10;
-	ws->layouts[i].height = ws->info.max_height/2 - 10;
+	ws->layouts[i].width = ws->info.max_width/2;
+	ws->layouts[i].height = ws->info.max_height/2;
 	ws->window_count += 1;
 	return (ws->layouts)+i;
 }
@@ -40,10 +40,97 @@ void move_horiz(ws_layout* ws, int xid){
 		w->quad += 1;
 	}
 
+	w->width = ws->info.max_width/2;
+	w->height = ws->info.max_height/2;
+
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_quad = ws->layouts[i].quad;
 		if(temp_quad == w->quad && ws->layouts[i].xid != xid){
 			ws->layouts[i].quad = starting_quad;
+		}
+	}
+	reset_positions(ws);
+}
+void move_vert(ws_layout* ws, int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	int starting_quad = w->quad;
+	int is_up = w->quad>1;
+
+
+	if(is_up){
+		w->quad -= 2;
+	} else{
+		w->quad += 2;
+	}
+
+	w->width = ws->info.max_width/2;
+	w->height = ws->info.max_height/2;
+
+
+	for(int i = 0; i < ws->window_count; i++){
+		int temp_quad = ws->layouts[i].quad;
+		if(temp_quad == w->quad && ws->layouts[i].xid != xid){
+			ws->layouts[i].quad = starting_quad;
+		}
+	}
+	reset_positions(ws);
+}
+void expand_horiz(ws_layout* ws, int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	int is_up = w->quad>1;
+	if(is_up) {
+		w->quad = 2;
+	} else {
+		w->quad = 0;
+	}
+	w->width = ws->info.max_width;
+
+	for(int i = 0; i < ws->window_count; i++){
+		int temp_is_up = ws->layouts[i].quad > 1;
+		if(temp_is_up == is_up && ws->layouts[i].xid != xid){
+			if(is_up){
+				ws->layouts[i].quad -= 2;
+			} else{
+				ws->layouts[i].quad += 2;
+			}
+		}
+	}
+	reset_positions(ws);
+}
+
+void expand_vert(ws_layout* ws, int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	int is_right = w->quad%2;
+	w->quad = is_right;
+
+	w->height = ws->info.max_height;
+
+	for(int i = 0; i < ws->window_count; i++){
+		int temp_is_right = ws->layouts[i].quad > 1;
+		if(temp_is_right == is_right && ws->layouts[i].xid != xid){
+			if(is_right){
+				ws->layouts[i].quad -= 1;
+			} else{
+				ws->layouts[i].quad += 1;
+			}
 		}
 	}
 	reset_positions(ws);

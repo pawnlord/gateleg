@@ -1,6 +1,7 @@
 #include "window_manager.h"
 #include <X11/Xutil.h>
-
+#define BORDER 20
+#define MODMASK Mod4Mask
 FILE* main_log;
 
 bool wm_detected_;
@@ -46,7 +47,7 @@ void destroy_window_manager(window_manager* wm){
 }
 
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
-	static unsigned int BORDER_WIDTH = 10;
+	static unsigned int BORDER_WIDTH = 0;
 	static unsigned long BORDER_COLOR = 0x000000;
 	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
@@ -66,10 +67,10 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	Window frame = XCreateSimpleWindow(
 			wm->display_,
 			wm->root_,
-			l->x,
-			l->y,
-			l->width,
-			l->height,
+			l->x + BORDER,
+			l->y + BORDER,
+			l->width - BORDER*2,
+			l->height - BORDER*2,
 			BORDER_WIDTH,
 			BORDER_COLOR,
 			BG_COLOR
@@ -83,7 +84,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	XAddToSaveSet(wm->display_, w);
 	XReparentWindow(wm->display_, w, frame, 0, 0);
 
-	XResizeWindow(wm->display_, w, l->width, l->height);
+	XResizeWindow(wm->display_, w, l->width - BORDER*2, l->height - BORDER*2);
 
 	XMapRaised(wm->display_, frame);
 
@@ -91,7 +92,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 
 /*	XGrabButton(wm->display_,
 			Button1,
-			Mod1Mask,
+			MODMASK,
 			frame,
 			FALSE,
 			ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
@@ -102,7 +103,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		);*/
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_J),
-		Mod1Mask,
+		MODMASK,
 		w,
 		FALSE,
 		GrabModeAsync,
@@ -110,7 +111,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_K),
-		Mod1Mask,
+		MODMASK,
 		w,
 		FALSE,
 		GrabModeAsync,
@@ -118,7 +119,23 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_F),
-		Mod1Mask,
+		MODMASK,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_H),
+		MODMASK,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_V),
+		MODMASK,
 		w,
 		FALSE,
 		GrabModeAsync,
@@ -126,7 +143,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_Left),
-		Mod1Mask | ShiftMask,
+		MODMASK | ShiftMask,
 		w,
 		FALSE,
 		GrabModeAsync,
@@ -134,13 +151,28 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_Right),
-		Mod1Mask | ShiftMask,
+		MODMASK | ShiftMask,
 		w,
 		FALSE,
 		GrabModeAsync,
 		GrabModeAsync
 	);
-
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_Up),
+		MODMASK | ShiftMask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_Down),
+		MODMASK | ShiftMask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
 
 	char* temp = malloc(100);
 	memset(temp, 0, 100);
@@ -239,7 +271,7 @@ void run_wm(window_manager* wm){
 	// Close button
 	XGrabKey(wm->display_,
 			XKeysymToKeycode(wm->display_, XK_E),
-			Mod1Mask | ShiftMask,
+			MODMASK | ShiftMask,
 			wm->root_,
 			FALSE,
 			GrabModeAsync,
@@ -248,7 +280,7 @@ void run_wm(window_manager* wm){
 	// Reset windows to last display
 	XGrabKey(wm->display_,
 			XKeysymToKeycode(wm->display_, XK_R),
-			Mod1Mask,
+			MODMASK,
 			wm->root_,
 			FALSE,
 			GrabModeAsync,
@@ -421,31 +453,44 @@ int OnWMDetected(Display* display, XErrorEvent* e){
 }
 
 int handle_key_press(window_manager* wm, XKeyEvent* e){
-	if((e->state & (Mod1Mask | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_E))){
+	if((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_E))){
 		close_window_manager(wm);
 		log_msg(wm->log, "Exit hotkey pressed");
 		exit(0);
 	}
-	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_J))){
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_J))){
 		Window w = e->window;
 		printf("Window %d accessed\n", w);
 		XKillClient(wm->display_, e->window);
 	}
-	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
 		Window w = e->window;
 		XResizeWindow(wm->display_, w, wm->workspace->info.max_width, wm->workspace->info.max_height);
 		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
 		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace->info.max_width, wm->workspace->info.max_height);
 	}
-	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
 		tile_windows(wm);
 	}
-	if(((e->state & (Mod1Mask | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
-	   || ((e->state & (Mod1Mask | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
+	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
+	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
 		move_horiz(wm->workspace, e->window);
 		tile_windows(wm);
 	}
-	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_H))){
+		expand_horiz(wm->workspace, e->window);
+		tile_windows(wm);
+	}
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_V))){
+		expand_vert(wm->workspace, e->window);
+		tile_windows(wm);
+	}
+	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Up)))
+	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Down)))){
+		move_vert(wm->workspace, e->window);
+		tile_windows(wm);
+	}
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_K))){
 		int i = e->window;
 		while(wm->clients_[(++i)%4096] == 0){
 			i%=4096;
@@ -453,6 +498,19 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		i%=4096;
 		wm->focus = i;
 	}
+	XRaiseWindow(wm->display_, e->window);
+	XSetInputFocus(wm->display_, e->window, RevertToNone, CurrentTime);
+	XGrabButton(wm->display_,
+		Button1,
+		None,
+		wm->root_,
+		FALSE,
+		ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
+		GrabModeAsync,
+		GrabModeAsync,
+		None,
+		None
+	);
 	log_msg(wm->log, "handling key press\n");
 }
 
@@ -503,9 +561,9 @@ void tile_windows(window_manager* wm){
 			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
 			log_msg(wm->log, temp);
 			free(temp);
-			XResizeWindow(wm->display_, w, lo->width, lo->height);
-			XResizeWindow(wm->display_, wm->clients_[w&4095], lo->width, lo->height);
-			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x, lo->y);
+			XResizeWindow(wm->display_, w, lo->width - BORDER*2, lo->height - BORDER*2);
+			XResizeWindow(wm->display_, wm->clients_[w&4095], lo->width - BORDER*2, lo->height - BORDER*2);
+			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x + BORDER, lo->y + BORDER);
 		}
 	}
 }
