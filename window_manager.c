@@ -7,6 +7,7 @@ FILE* main_log;
 bool wm_detected_;
 bool pointer_initialized = FALSE;
 void tile_windows(window_manager* wm);
+const char* terminal = "lxterminal";
 
 int create_window_manager(window_manager* wm){
 	Display* display = XOpenDisplay(NULL);
@@ -143,6 +144,14 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_V),
+		MODMASK,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, XK_N),
 		MODMASK,
 		w,
 		FALSE,
@@ -320,7 +329,10 @@ void run_wm(window_manager* wm){
 				free(temp);
 			}
 			break;
-			case DestroyNotify:
+			case DestroyNotify:{
+				XDestroyWindowEvent *e = &(main_event.xdestroywindow);
+				remove_window(wm->workspace, e->window);
+			}
 			break;
 			case ReparentNotify:
 			break;
@@ -496,6 +508,12 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_V))){
 		expand_vert(wm->workspace, e->window);
 		tile_windows(wm);
+	}
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_N))){
+		if(fork() == 0){
+			execlp(terminal, "");
+			exit(0);
+		}
 	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Up)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Down)))){

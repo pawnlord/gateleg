@@ -9,12 +9,20 @@ ws_layout* init_ws(ws_info info){
 	return ws;
 }
 window_layout* add_window(ws_layout* ws, unsigned long int xid){
+	int quad = 0;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].quad == quad){
+			quad+=1;
+		}
+		if(quad >= 4){
+			quad = 0;
+		}
+	}
 	int i = ws->window_count;
-	int quad = i%4;
 	int is_right = quad%2;
 	int is_down = quad>1;
 	ws->layouts[i].xid = xid;
-	ws->layouts[i].quad = i%4;
+	ws->layouts[i].quad = quad;
 	ws->layouts[i].x = is_right * (ws->info.max_width/2);
 	ws->layouts[i].y = is_down * (ws->info.max_height/2);
 	ws->layouts[i].width = ws->info.max_width/2;
@@ -23,6 +31,21 @@ window_layout* add_window(ws_layout* ws, unsigned long int xid){
 	return (ws->layouts)+i;
 }
 
+void remove_window(ws_layout* ws, unsigned long int xid){
+	int id = -1;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			id = i;
+			break;
+		}
+	}
+	if(id != -1){
+		for(int i = id; i < ws->window_count; i++){
+			ws->layouts[i] = ws->layouts[i+1];
+		}
+		ws->window_count -= 1;
+	}
+}
 void move_horiz(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
@@ -126,7 +149,7 @@ void expand_vert(ws_layout* ws, unsigned long int xid){
 
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_is_right = ws->layouts[i].quad > 1;
-		if(temp_is_right == is_right && ws->layouts[i].xid != xid){
+		if(temp_is_right == is_right && ws->layouts[i].xid != xid && ws->layouts[i].xid){
 			if(is_right){
 				ws->layouts[i].quad -= 1;
 			} else{
