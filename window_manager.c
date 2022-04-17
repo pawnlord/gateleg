@@ -7,6 +7,7 @@ FILE* main_log;
 bool wm_detected_;
 bool pointer_initialized = FALSE;
 void tile_windows(window_manager* wm);
+void switch_spaces(window_manager* wm, int src_wsnum, int dst_wsnum);
 const char* terminal = "lxterminal\0";
 
 int create_window_manager(window_manager* wm){
@@ -37,7 +38,10 @@ void init_window_manager(window_manager* wm, Display* display){
 	int snum = XDefaultScreen(wm->display_);
 	inf.max_width = XDisplayWidth(wm->display_, snum);
 	inf.max_height = XDisplayHeight(wm->display_, snum);
-	wm->workspace = init_ws(inf);
+	wm->workspace = malloc(sizeof(ws_layout*)*10);
+	memset(wm->workspace, 0, 10*sizeof(ws_layout*));
+	wm->workspace[0] = init_ws(inf);
+	wm->wsnum = 0;
 	wm->focus = wm->root_;
 	main_log = wm->log;
 }
@@ -53,7 +57,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
-	window_layout* l = add_window(wm->workspace, w);
+	window_layout* l = add_window(wm->workspace[wm->wsnum], w);
 	log_msg(wm->log, "test");
 	if(x_window_attrs.override_redirect == True){
 		log_msg(wm->log, "override called");
@@ -303,7 +307,17 @@ void run_wm(window_manager* wm){
 			GrabModeAsync,
 			GrabModeAsync
 		);
-
+	// Grab all workspace hotkeys
+	for(int i = 10; i < 20; i++){
+		XGrabKey(wm->display_,
+				i,
+				MODMASK,
+				wm->root_,
+				FALSE,
+				GrabModeAsync,
+				GrabModeAsync
+			);
+	}
 	log_msg(wm->log, "Entering main loop");
 	/*XGrabPointer(wm->display_,
 			wm->root_,
@@ -330,7 +344,7 @@ void run_wm(window_manager* wm){
 			break;
 			case DestroyNotify:{
 				XDestroyWindowEvent *e = &(main_event.xdestroywindow);
-				remove_window(wm->workspace, e->window);
+				remove_window(wm->workspace[wm->wsnum], e->window);
 			}
 			break;
 			case ReparentNotify:
@@ -478,34 +492,52 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		exit(0);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_J))){
-		Window w = e->window;
+/*		Window w = e->window;
 		printf("Window %d accessed\n", w);
 		XKillClient(wm->display_, e->window);
+*/
+		//hid window
+		Window w = e->window;
+		XIconifyWindow(wm->display_, wm->root_, DefaultScreen(wm->display_));
+	}
+	if((e->state & MODMASK) && (e->keycode >= 10 && e->keycode <= 19)){
+		int n = e->keycode - 10;
+		if(wm->workspace[n] == 0){
+			wm->workspace[n] = init_ws(wm->workspace[wm->wsnum]->info);
+		}
+		switch_spaces(wm, wm->wsnum, n);
+		wm->wsnum = n;
+		tile_windows(wm);
+		char* temp = malloc(100);
+		memset(temp, 0, 100);
+		sprintf(temp, "workspace number %d", n);
+		log_msg(wm->log, temp);
+		free(temp);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
 		Window w = e->window;
-		XResizeWindow(wm->display_, w, wm->workspace->info.max_width, wm->workspace->info.max_height);
+		XResizeWindow(wm->display_, w, wm->workspace[wm->wsnum]->info.max_width, wm->workspace[wm->wsnum]->info.max_height);
 		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
-		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace->info.max_width, wm->workspace->info.max_height);
+		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace[wm->wsnum]->info.max_width, wm->workspace[wm->wsnum]->info.max_height);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
 		tile_windows(wm);
 	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
-		move_horiz(wm->workspace, e->window);
+		move_horiz(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_H))){
-		expand_horiz(wm->workspace, e->window);
+		expand_horiz(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_G))){
-		reset_expansion(wm->workspace, e->window);
+		reset_expansion(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_V))){
-		expand_vert(wm->workspace, e->window);
+		expand_vert(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_N))){
@@ -516,7 +548,7 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Up)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Down)))){
-		move_vert(wm->workspace, e->window);
+		move_vert(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	XRaiseWindow(wm->display_, e->window);
@@ -524,7 +556,7 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 
 
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Tab))){
-		Window w = get_next(wm->workspace, e->window);
+		Window w = get_next(wm->workspace[wm->wsnum], e->window);
 		XRaiseWindow(wm->display_, w);
 		XSetInputFocus(wm->display_, w, RevertToNone, CurrentTime);
 		char* temp = malloc(100);
@@ -585,7 +617,7 @@ int handle_button_press(window_manager* wm, XButtonEvent* e){
 }
 
 void tile_windows(window_manager* wm){
-	ws_layout* workspace = wm->workspace;
+	ws_layout* workspace = wm->workspace[wm->wsnum];
 	for(int i = 0; i < workspace->window_count; i++){
 		Window w = workspace->layouts[i].xid;
 		window_layout* lo = workspace->layouts+i;
@@ -599,5 +631,20 @@ void tile_windows(window_manager* wm){
 			XResizeWindow(wm->display_, wm->clients_[w&4095], lo->width - BORDER*2, lo->height - BORDER*2);
 			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x + BORDER, lo->y + BORDER);
 		}
+	}
+}
+
+void switch_spaces(window_manager* wm, int src_wsnum, int dst_wsnum){
+	ws_layout* src = wm->workspace[src_wsnum];
+	ws_layout* dst = wm->workspace[dst_wsnum];
+	for(int i = 0; i < src->window_count; i++){
+		Window w = src->layouts[i].xid;
+		Window frame = wm->clients_[w&4095];
+		XUnmapWindow(wm->display_, frame);
+	}
+	for(int i = 0; i < dst->window_count; i++){
+		Window w = dst->layouts[i].xid;
+		Window frame = wm->clients_[w&4095];
+		XMapWindow(wm->display_, frame);
 	}
 }

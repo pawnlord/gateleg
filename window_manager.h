@@ -15,9 +15,11 @@ typedef struct {
 	Display* display_;
 	Window root_;
 	Window* clients_;
-	ws_layout* workspace;
+	Window* main_windows;
+	ws_layout** workspace;
 	Window focus;
 	FILE* log;
+	int wsnum;
 } window_manager;
 
 int create_window_manager(window_manager* wm);
