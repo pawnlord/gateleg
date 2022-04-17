@@ -7,7 +7,7 @@ FILE* main_log;
 bool wm_detected_;
 bool pointer_initialized = FALSE;
 void tile_windows(window_manager* wm);
-const char* terminal = "lxterminal";
+const char* terminal = "lxterminal\0";
 
 int create_window_manager(window_manager* wm){
 	Display* display = XOpenDisplay(NULL);
@@ -144,14 +144,6 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	);
 	XGrabKey(wm->display_,
 		XKeysymToKeycode(wm->display_, XK_V),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_N),
 		MODMASK,
 		w,
 		FALSE,
@@ -303,7 +295,14 @@ void run_wm(window_manager* wm){
 			GrabModeAsync,
 			GrabModeAsync
 		);
-
+	XGrabKey(wm->display_,
+			XKeysymToKeycode(wm->display_, XK_N),
+			MODMASK,
+			wm->root_,
+			FALSE,
+			GrabModeAsync,
+			GrabModeAsync
+		);
 
 	log_msg(wm->log, "Entering main loop");
 	/*XGrabPointer(wm->display_,
@@ -511,7 +510,7 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_N))){
 		if(fork() == 0){
-			execlp(terminal, "");
+			system(terminal);
 			exit(0);
 		}
 	}
