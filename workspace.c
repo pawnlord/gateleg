@@ -148,7 +148,7 @@ void expand_vert(ws_layout* ws, unsigned long int xid){
 	w->height = ws->info.max_height;
 
 	for(int i = 0; i < ws->window_count; i++){
-		int temp_is_right = ws->layouts[i].quad > 1;
+		int temp_is_right = ws->layouts[i].quad%2;
 		if(temp_is_right == is_right && ws->layouts[i].xid != xid && ws->layouts[i].xid){
 			if(is_right){
 				ws->layouts[i].quad -= 1;

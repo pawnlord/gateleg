@@ -1,6 +1,6 @@
 #include "window_manager.h"
 #include <X11/Xutil.h>
-#define BORDER 20
+#define BORDER 40
 #define MODMASK Mod4Mask
 FILE* main_log;
 
@@ -29,10 +29,7 @@ int close_window_manager(window_manager* wm){
 void init_window_manager(window_manager* wm, Display* display){
 	wm->display_ = display;
 	wm->root_ = DefaultRootWindow(wm->display_);
-	wm->clients_ = malloc(sizeof(Window)*4096);
-	for(int i = 0; i < 4096; i++){
-		wm->clients_[i] = 0;
-	}
+	wm->clients_ = init_wmap();
 	wm->log = open_log("log.log");
 	ws_info inf;
 	int snum = XDefaultScreen(wm->display_);
@@ -58,7 +55,6 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
 	window_layout* l = add_window(wm->workspace[wm->wsnum], w);
-	log_msg(wm->log, "test");
 	if(x_window_attrs.override_redirect == True){
 		log_msg(wm->log, "override called");
 		return;
@@ -89,11 +85,9 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	XAddToSaveSet(wm->display_, w);
 	XReparentWindow(wm->display_, w, frame, 0, 0);
 
-	XResizeWindow(wm->display_, w, l->width - BORDER*2, l->height - BORDER*2);
-
 	XMapRaised(wm->display_, frame);
 
-	wm->clients_[w&4095] = frame;
+	wmap_set(wm->clients_, w, frame);
 
 /*	XGrabButton(wm->display_,
 			Button1,
@@ -195,12 +189,12 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	wm->focus = w;
 }
 void unframe(window_manager* wm, Window w){
-	Window frame = wm->clients_[w&4095];
+	Window frame = wmap_get(wm->clients_, w);
 	XUnmapWindow(wm->display_, frame);
 	XReparentWindow(wm->display_, w, wm->root_, 0, 0);
 	XRemoveFromSaveSet(wm->display_, w);
 	XDestroyWindow(wm->display_, frame);
-	wm->clients_[w&4095] = 0;
+	wmap_set(wm->clients_, w, 0);
 	wm->focus = wm->root_;
 	XSetInputFocus(wm->display_, wm->focus, RevertToNone, CurrentTime);
 }
@@ -333,18 +327,15 @@ void run_wm(window_manager* wm){
 		switch(main_event.type){
 			case CreateNotify:{
 
-				log_msg(wm->log, "Create notify");
 				XCreateWindowEvent* e = &(main_event.xcreatewindow);
-				char* temp = malloc(100);
-				memset(temp, 0, 100);
-				sprintf(temp, "New Window: %d", e->window);
-				log_msg(wm->log, temp);
-				free(temp);
 			}
 			break;
 			case DestroyNotify:{
 				XDestroyWindowEvent *e = &(main_event.xdestroywindow);
 				remove_window(wm->workspace[wm->wsnum], e->window);
+				if(wmap_get(wm->clients_, e->window) != 0){
+					unframe(wm, e->window);
+				}
 			}
 			break;
 			case ReparentNotify:
@@ -361,19 +352,26 @@ void run_wm(window_manager* wm){
 				frame_changes.stack_mode = e->detail;
 
 				XWindowChanges window_changes = frame_changes;
-				window_changes.x = 0;
-				window_changes.y = 0;
+//				window_changes.x = 0;
+//				window_changes.y = 0;
+				Window frame = wmap_get(wm->clients_, e->window);
 
-				if(wm->clients_[e->window&4095] != 0){
-					Window frame = wm->clients_[e->window&4095];
+				char* temp = malloc(100);
+				memset(temp, 0, 100);
+				sprintf(temp, "Configure Request: %d, %d, %d, %d", e->window, frame, frame_changes.width, frame_changes.height);
+				log_msg(wm->log, temp);
+				free(temp);
+
+				if(frame != 0){
 					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
-					XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
+					XResizeWindow(wm->display_, frame, e->width, e->height);
 				}
+				XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
 			}
 			break;
 			case UnmapNotify:{
 				XUnmapEvent *e = &(main_event.xunmap);
-				if(wm->clients_[e->window&4095] == 0 || e->event == wm->root_){
+				if(wmap_get(wm->clients_, e->window) == 0 || e->event == wm->root_){
 					break;
 				}
 				unframe(wm, e->window);
@@ -423,7 +421,7 @@ void run_wm(window_manager* wm){
 					Window focus = get_pointer_window(wm, FALSE);
 					e->window = focus;
 					XWindowAttributes watts;
-					XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
+					XGetWindowAttributes(wm->display_, wmap_get(wm->clients_, focus), &watts);
 					e->x -= watts.x + watts.border_width;
 					e->y -= watts.y + watts.border_width;
 					XSendEvent(wm->display_, focus, TRUE, None, (XEvent*)e);
@@ -441,8 +439,9 @@ void run_wm(window_manager* wm){
 				if(!e->send_event){
 					Window focus = get_pointer_window(wm, FALSE);
 					XWindowAttributes watts;
-					if(wm->clients_[focus&4095] != 0){
-						XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
+					Window frame = wmap_get(wm->clients_, focus);
+					if(frame != 0){
+						XGetWindowAttributes(wm->display_, frame, &watts);
 						e->x -= watts.x + watts.border_width;
 						e->y -= watts.y + watts.border_width;
 					}
@@ -516,9 +515,10 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
 		Window w = e->window;
+		Window frame = wmap_get(wm->clients_, w);
 		XResizeWindow(wm->display_, w, wm->workspace[wm->wsnum]->info.max_width, wm->workspace[wm->wsnum]->info.max_height);
-		XMoveWindow(wm->display_, wm->clients_[w&4095], 0, 0);
-		XResizeWindow(wm->display_, wm->clients_[w&4095], wm->workspace[wm->wsnum]->info.max_width, wm->workspace[wm->wsnum]->info.max_height);
+		XMoveWindow(wm->display_, frame, 0, 0);
+		XResizeWindow(wm->display_, frame, wm->workspace[wm->wsnum]->info.max_width, wm->workspace[wm->wsnum]->info.max_height);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
 		tile_windows(wm);
@@ -604,7 +604,7 @@ int handle_button_press(window_manager* wm, XButtonEvent* e){
 			e->subwindow = subwindow;
 		}
 		XWindowAttributes watts;
-		XGetWindowAttributes(wm->display_, wm->clients_[focus&4095], &watts);
+		XGetWindowAttributes(wm->display_, wmap_get(wm->clients_, focus), &watts);
 		e->x -= watts.x + watts.border_width;
 		e->y -= watts.y + watts.border_width;
 		log_msg(wm->log, "sending event");
@@ -621,15 +621,16 @@ void tile_windows(window_manager* wm){
 	for(int i = 0; i < workspace->window_count; i++){
 		Window w = workspace->layouts[i].xid;
 		window_layout* lo = workspace->layouts+i;
-		if(wm->clients_[w&4095] != 0){
+		Window frame = wmap_get(wm->clients_, w);
+		if(frame != 0){
 			char* temp = malloc(100);
 			memset(temp, 0, 100);
 			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
 			log_msg(wm->log, temp);
 			free(temp);
 			XResizeWindow(wm->display_, w, lo->width - BORDER*2, lo->height - BORDER*2);
-			XResizeWindow(wm->display_, wm->clients_[w&4095], lo->width - BORDER*2, lo->height - BORDER*2);
-			XMoveWindow(wm->display_, wm->clients_[w&4095], lo->x + BORDER, lo->y + BORDER);
+			XResizeWindow(wm->display_, frame, lo->width - BORDER*2, lo->height - BORDER*2);
+			XMoveWindow(wm->display_, frame, lo->x + BORDER, lo->y + BORDER);
 		}
 	}
 }
@@ -639,12 +640,12 @@ void switch_spaces(window_manager* wm, int src_wsnum, int dst_wsnum){
 	ws_layout* dst = wm->workspace[dst_wsnum];
 	for(int i = 0; i < src->window_count; i++){
 		Window w = src->layouts[i].xid;
-		Window frame = wm->clients_[w&4095];
+		Window frame = wmap_get(wm->clients_, w);
 		XUnmapWindow(wm->display_, frame);
 	}
 	for(int i = 0; i < dst->window_count; i++){
 		Window w = dst->layouts[i].xid;
-		Window frame = wm->clients_[w&4095];
+		Window frame = wmap_get(wm->clients_, w);
 		XMapWindow(wm->display_, frame);
 	}
 }

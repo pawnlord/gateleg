@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "logger.h"
 #include "workspace.h"
+#include "wmap.h"
 #define TRUE 1
 #define FALSE 0
 
@@ -14,7 +15,7 @@ typedef int bool;
 typedef struct {
 	Display* display_;
 	Window root_;
-	Window* clients_;
+	window_map* clients_;
 	Window* main_windows;
 	ws_layout** workspace;
 	Window focus;
