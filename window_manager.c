@@ -521,6 +521,10 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		if(wm->workspace[n] == 0){
 			wm->workspace[n] = init_ws(wm->workspace[wm->wsnum]->info);
 		}
+		if(e->state & (MODMASK | ShiftMask)){
+			remove_window(wm->workspace[wm->wsnum], e->window);
+			add_window(wm->workspace[n], e->window);
+		}
 		switch_spaces(wm, wm->wsnum, n);
 		wm->wsnum = n;
 		tile_windows(wm);
