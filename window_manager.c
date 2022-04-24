@@ -65,6 +65,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 			return;
 		}
 	}
+	l->lock = 1;
 	Window frame = XCreateSimpleWindow(
 			wm->display_,
 			wm->root_,
@@ -76,6 +77,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 			BORDER_COLOR,
 			BG_COLOR
 		);
+	l->lock = 0;
 	XSelectInput(
 			wm->display_,
 			frame,
@@ -180,6 +182,18 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		GrabModeAsync,
 		GrabModeAsync
 	);
+
+	// Grab all workspace hotkeys
+	for(int i = 10; i < 20; i++){
+		XGrabKey(wm->display_,
+				i,
+				MODMASK | ShiftMask,
+				w,
+				FALSE,
+				GrabModeAsync,
+				GrabModeAsync
+			);
+	}
 
 	char* temp = malloc(100);
 	memset(temp, 0, 100);
@@ -365,6 +379,9 @@ void run_wm(window_manager* wm){
 				if(frame != 0){
 					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
 					XResizeWindow(wm->display_, frame, e->width, e->height);
+					if(get_lock(wm->workspace[wm->wsnum], e->window) == 0){
+						move_resize_lo(wm->workspace[wm->wsnum], e->window, e->x-BORDER, e->y-BORDER, e->width+BORDER*2, e->height+BORDER*2);
+					}
 				}
 				XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
 			}
@@ -621,17 +638,19 @@ void tile_windows(window_manager* wm){
 	for(int i = 0; i < workspace->window_count; i++){
 		Window w = workspace->layouts[i].xid;
 		window_layout* lo = workspace->layouts+i;
+		lo->lock = 1;
 		Window frame = wmap_get(wm->clients_, w);
-		if(frame != 0){
+		if(frame != 0 && lo->quad >= 0){
 			char* temp = malloc(100);
 			memset(temp, 0, 100);
 			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
 			log_msg(wm->log, temp);
-			free(temp);
+				free(temp);
 			XResizeWindow(wm->display_, w, lo->width - BORDER*2, lo->height - BORDER*2);
 			XResizeWindow(wm->display_, frame, lo->width - BORDER*2, lo->height - BORDER*2);
 			XMoveWindow(wm->display_, frame, lo->x + BORDER, lo->y + BORDER);
 		}
+		lo->lock = 0;
 	}
 }
 

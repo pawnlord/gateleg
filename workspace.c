@@ -27,6 +27,7 @@ window_layout* add_window(ws_layout* ws, unsigned long int xid){
 	ws->layouts[i].y = is_down * (ws->info.max_height/2);
 	ws->layouts[i].width = ws->info.max_width/2;
 	ws->layouts[i].height = ws->info.max_height/2;
+	ws->layouts[i].lock = 0;
 	ws->window_count += 1;
 	return (ws->layouts)+i;
 }
@@ -46,6 +47,18 @@ void remove_window(ws_layout* ws, unsigned long int xid){
 		ws->window_count -= 1;
 	}
 }
+
+char get_lock(ws_layout* ws, unsigned long int xid){
+	window_layout* w;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	return w->lock;
+}
+
 void move_horiz(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
@@ -170,6 +183,25 @@ void reset_expansion(ws_layout* ws, unsigned long int xid){
 	}
 	w->height = ws->info.max_height/2;
 	w->width = ws->info.max_width/2;
+}
+
+void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height){
+	window_layout* w;
+	int i;
+	for(i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			w = ws->layouts+i;
+			break;
+		}
+	}
+	int difference = abs(w->x-x)+abs(w->y-y)+abs(w->width-width)+abs(w->height-height);
+	w->x = x;
+	w->y = y;
+	w->width = width;
+	w->height = height;
+	if(difference){
+		w->quad = -1;
+	}
 }
 
 unsigned long int get_next(ws_layout* ws, unsigned long int xid){
