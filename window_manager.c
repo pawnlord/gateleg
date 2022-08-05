@@ -48,6 +48,17 @@ void destroy_window_manager(window_manager* wm){
 	XCloseDisplay(wm->display_);
 }
 
+void grab_key(window_manager *wm, int key, int mask, Window w){
+	XGrabKey(wm->display_,
+		XKeysymToKeycode(wm->display_, key),
+		mask,
+		w,
+		FALSE,
+		GrabModeAsync,
+		GrabModeAsync
+	);
+}
+
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned int BORDER_WIDTH = 0;
 	static unsigned long BORDER_COLOR = 0x000000;
@@ -102,86 +113,16 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 			0,
 			0
 		);*/
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_J),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_Tab),
-		Mod1Mask,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_F),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_H),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_G),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_V),
-		MODMASK,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_Left),
-		MODMASK | ShiftMask,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_Right),
-		MODMASK | ShiftMask,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_Up),
-		MODMASK | ShiftMask,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
-	XGrabKey(wm->display_,
-		XKeysymToKeycode(wm->display_, XK_Down),
-		MODMASK | ShiftMask,
-		w,
-		FALSE,
-		GrabModeAsync,
-		GrabModeAsync
-	);
+	grab_key(wm, XK_J, MODMASK, w);
+	grab_key(wm, XK_Tab, Mod1Mask, w);
+	grab_key(wm, XK_F, MODMASK, w);
+	grab_key(wm, XK_G, MODMASK, w);
+	grab_key(wm, XK_V, MODMASK, w);
+	grab_key(wm, XK_H, MODMASK, w);
+	grab_key(wm, XK_Left, MODMASK | ShiftMask, w);
+	grab_key(wm, XK_Right, MODMASK | ShiftMask, w);
+	grab_key(wm, XK_Up, MODMASK | ShiftMask, w);
+	grab_key(wm, XK_Down, MODMASK | ShiftMask, w);
 
 	// Grab all workspace hotkeys
 	for(int i = 10; i < 20; i++){
