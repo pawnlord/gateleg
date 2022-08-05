@@ -58,6 +58,8 @@ void grab_key(window_manager *wm, int key, int mask, Window w){
 		GrabModeAsync
 	);
 }
+void frame(window_manager* wm, Window w, bool is_before_wm_created);
+void unframe(window_manager* wm, Window w);
 
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned int BORDER_WIDTH = 0;
@@ -75,6 +77,9 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		if(x_window_attrs.override_redirect || x_window_attrs.map_state != IsViewable){
 			return;
 		}
+	}
+	if(wmap_get(wm->clients_, w) != -1){
+		unframe(wm, w);
 	}
 	l->lock = 1;
 	Window frame = XCreateSimpleWindow(
@@ -231,31 +236,10 @@ void run_wm(window_manager* wm){
 	XFree(top_level_windows);
 	XUngrabServer(wm->display_);
 	// Close button
-	XGrabKey(wm->display_,
-			XKeysymToKeycode(wm->display_, XK_E),
-			MODMASK | ShiftMask,
-			wm->root_,
-			FALSE,
-			GrabModeAsync,
-			GrabModeAsync
-		);
+	grab_key(wm, XK_E, MODMASK | ShiftMask, wm->root_);
 	// Reset windows to last display
-	XGrabKey(wm->display_,
-			XKeysymToKeycode(wm->display_, XK_R),
-			MODMASK,
-			wm->root_,
-			FALSE,
-			GrabModeAsync,
-			GrabModeAsync
-		);
-	XGrabKey(wm->display_,
-			XKeysymToKeycode(wm->display_, XK_N),
-			MODMASK,
-			wm->root_,
-			FALSE,
-			GrabModeAsync,
-			GrabModeAsync
-		);
+	grab_key(wm, XK_R, MODMASK, wm->root_);
+	grab_key(wm, XK_N, MODMASK, wm->root_);
 	// Grab all workspace hotkeys
 	for(int i = 10; i < 20; i++){
 		XGrabKey(wm->display_,
@@ -288,7 +272,7 @@ void run_wm(window_manager* wm){
 			case DestroyNotify:{
 				XDestroyWindowEvent *e = &(main_event.xdestroywindow);
 				remove_window(wm->workspace[wm->wsnum], e->window);
-				if(wmap_get(wm->clients_, e->window) != 0){
+				if(wmap_get(wm->clients_, e->window) != -1){
 					unframe(wm, e->window);
 				}
 			}
@@ -307,8 +291,8 @@ void run_wm(window_manager* wm){
 				frame_changes.stack_mode = e->detail;
 
 				XWindowChanges window_changes = frame_changes;
-//				window_changes.x = 0;
-//				window_changes.y = 0;
+				window_changes.x = 0;
+				window_changes.y = 0;
 				Window frame = wmap_get(wm->clients_, e->window);
 
 				char* temp = malloc(100);
@@ -317,7 +301,7 @@ void run_wm(window_manager* wm){
 				log_msg(wm->log, temp);
 				free(temp);
 
-				if(frame != 0){
+				if(frame != -1){
 					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
 					XResizeWindow(wm->display_, frame, e->width, e->height);
 					if(get_lock(wm->workspace[wm->wsnum], e->window) == 0){
@@ -398,7 +382,7 @@ void run_wm(window_manager* wm){
 					Window focus = get_pointer_window(wm, FALSE);
 					XWindowAttributes watts;
 					Window frame = wmap_get(wm->clients_, focus);
-					if(frame != 0){
+					if(frame != -1){
 						XGetWindowAttributes(wm->display_, frame, &watts);
 						e->x -= watts.x + watts.border_width;
 						e->y -= watts.y + watts.border_width;
@@ -585,7 +569,7 @@ void tile_windows(window_manager* wm){
 		window_layout* lo = workspace->layouts+i;
 		lo->lock = 1;
 		Window frame = wmap_get(wm->clients_, w);
-		if(frame != 0 && lo->quad >= 0){
+		if(frame != -1 && lo->quad >= 0){
 			char* temp = malloc(100);
 			memset(temp, 0, 100);
 			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);

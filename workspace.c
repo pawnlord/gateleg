@@ -79,12 +79,14 @@ void move_horiz(ws_layout* ws, unsigned long int xid){
 
 	w->width = ws->info.max_width/2;
 
+	w->lock = 1;
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_quad = ws->layouts[i].quad;
-		if(temp_quad == w->quad && ws->layouts[i].xid != xid){
-			ws->layouts[i].quad = starting_quad;
+		if(temp_quad == w->quad && ws->layouts[i].xid != xid && !ws->layouts[i].lock){
+			move_horiz(ws, ws->layouts[i].xid);
 		}
 	}
+	w->lock = 0;
 	reset_positions(ws);
 }
 
@@ -107,14 +109,14 @@ void move_vert(ws_layout* ws, unsigned long int xid){
 	}
 
 	w->height = ws->info.max_height/2;
-
-
+	w->lock = 1;
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_quad = ws->layouts[i].quad;
-		if(temp_quad == w->quad && ws->layouts[i].xid != xid){
-			ws->layouts[i].quad = starting_quad;
+		if(temp_quad == w->quad && ws->layouts[i].xid != xid && !ws->layouts[i].lock){
+			move_vert(ws, ws->layouts[i].xid);
 		}
 	}
+	w->lock = 0;
 	reset_positions(ws);
 }
 
@@ -136,7 +138,7 @@ void expand_horiz(ws_layout* ws, unsigned long int xid){
 
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_is_up = ws->layouts[i].quad > 1;
-		if(temp_is_up == is_up && ws->layouts[i].xid != xid){
+		if(temp_is_up == is_up && ws->layouts[i].xid != xid && ws->layouts[i].quad >= 0){
 			if(is_up){
 				ws->layouts[i].quad -= 2;
 			} else{
@@ -162,7 +164,7 @@ void expand_vert(ws_layout* ws, unsigned long int xid){
 
 	for(int i = 0; i < ws->window_count; i++){
 		int temp_is_right = ws->layouts[i].quad%2;
-		if(temp_is_right == is_right && ws->layouts[i].xid != xid && ws->layouts[i].xid){
+		if(temp_is_right == is_right && ws->layouts[i].xid != xid && ws->layouts[i].xid && ws->layouts[i].quad != 0){
 			if(is_right){
 				ws->layouts[i].quad -= 1;
 			} else{
