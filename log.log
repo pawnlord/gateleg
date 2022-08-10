@@ -1,0 +1,32 @@
+[gataleg Wed Aug 10 04:45:59 2022]: Entering main loop
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 10485762, -1, 1366, 35
+[gataleg Wed Aug 10 04:45:59 2022]: New Frame: 4194305
+[gataleg Wed Aug 10 04:45:59 2022]: New Window: 10485762
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 10485762, 4194305, 1366, 35
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, -1, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: New Frame: 4194306
+[gataleg Wed Aug 10 04:45:59 2022]: New Window: 12582915
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194306, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194306, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194306, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, -1, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: New Frame: 4194307
+[gataleg Wed Aug 10 04:45:59 2022]: New Window: 12582915
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194307, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194307, 1366, 768
+[gataleg Wed Aug 10 04:45:59 2022]: Configure Request: 12582915, 4194307, 1366, 768
+[gataleg Wed Aug 10 04:46:00 2022]: Configure Request: 12582915, -1, 1366, 768
+[gataleg Wed Aug 10 04:46:00 2022]: New Frame: 4194308
+[gataleg Wed Aug 10 04:46:00 2022]: New Window: 12582915
+[gataleg Wed Aug 10 04:46:00 2022]: Configure Request: 12582915, 4194308, 1366, 768
+[gataleg Wed Aug 10 04:46:00 2022]: Configure Request: 12582915, 4194308, 1366, 768
+[gataleg Wed Aug 10 04:46:00 2022]: Configure Request: 12582915, 4194308, 1366, 768
+[gataleg Wed Aug 10 04:46:01 2022]: Configure Request: 12582915, -1, 1366, 768
+[gataleg Wed Aug 10 04:46:01 2022]: New Frame: 4194309
+[gataleg Wed Aug 10 04:46:01 2022]: New Window: 12582915
+[gataleg Wed Aug 10 04:46:01 2022]: Configure Request: 12582915, 4194309, 1366, 768
+[gataleg Wed Aug 10 04:46:01 2022]: Configure Request: 12582915, 4194309, 1366, 768
+[gataleg Wed Aug 10 04:46:01 2022]: Configure Request: 12582915, 4194309, 1366, 768
+[gataleg Wed Aug 10 04:46:02 2022]: Closing Window Manager
+
+[gataleg Wed Aug 10 04:46:02 2022]: Exit hotkey pressed
