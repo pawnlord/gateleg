@@ -154,7 +154,7 @@ void unframe(window_manager* wm, Window w){
 	XReparentWindow(wm->display_, w, wm->root_, 0, 0);
 	XRemoveFromSaveSet(wm->display_, w);
 	XDestroyWindow(wm->display_, frame);
-	wmap_set(wm->clients_, w, 0);
+	wmap_set(wm->clients_, w, -1);
 	wm->focus = wm->root_;
 	XSetInputFocus(wm->display_, wm->focus, RevertToNone, CurrentTime);
 }
