@@ -107,17 +107,6 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 
 	wmap_set(wm->clients_, w, frame);
 
-/*	XGrabButton(wm->display_,
-			Button1,
-			MODMASK,
-			frame,
-			FALSE,
-			ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
-			GrabModeAsync,
-			GrabModeAsync,
-			0,
-			0
-		);*/
 	grab_key(wm, XK_J, MODMASK, w);
 	grab_key(wm, XK_Tab, Mod1Mask, w);
 	grab_key(wm, XK_F, MODMASK, w);
@@ -154,7 +143,7 @@ void unframe(window_manager* wm, Window w){
 	XReparentWindow(wm->display_, w, wm->root_, 0, 0);
 	XRemoveFromSaveSet(wm->display_, w);
 	XDestroyWindow(wm->display_, frame);
-	wmap_set(wm->clients_, w, -1);
+	wmap_set(wm->clients_, w, 11111111);
 	wm->focus = wm->root_;
 	XSetInputFocus(wm->display_, wm->focus, RevertToNone, CurrentTime);
 }
@@ -574,7 +563,7 @@ void tile_windows(window_manager* wm){
 			memset(temp, 0, 100);
 			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
 			log_msg(wm->log, temp);
-				free(temp);
+			free(temp);
 			XResizeWindow(wm->display_, w, lo->width - BORDER*2, lo->height - BORDER*2);
 			XResizeWindow(wm->display_, frame, lo->width - BORDER*2, lo->height - BORDER*2);
 			XMoveWindow(wm->display_, frame, lo->x + BORDER, lo->y + BORDER);

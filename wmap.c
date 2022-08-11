@@ -43,13 +43,9 @@ void wmap_set(window_map* wm, Window key, Window val){
 // Returns -1 on failure
 Window wmap_get(window_map* wm, Window key){
 	int idx = hashw(key);
-	if(wm->buckets[idx].n == 0){
-		return -1;
-	} else{
-		for(int i = 0; i < wm->buckets[idx].n; i++){
-			if(wm->buckets[idx].keys[i] == key){
-				return wm->buckets[idx].vals[i];
-			}
+	for(int i = 0; i < wm->buckets[idx].n; i++){
+		if(wm->buckets[idx].keys[i] == key){
+			return wm->buckets[idx].vals[i];
 		}
 	}
 	return -1;
