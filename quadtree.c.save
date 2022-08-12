@@ -245,7 +245,7 @@ window_pos *add_pos(pos_list_t *pos_list, window_pos pos){
 		pos_list->lst = realloc(pos_list->lst, pos_list->size*sizeof(window_pos));
 	}
 	pos_list->lst[pos_list->len-1] = pos;
-	return (window_pos*)(pos_list->lst+(pos_list->len-1));
+	return pos_list->lst+(pos_list->len-1);
 }
 
 
@@ -258,7 +258,6 @@ void _gather_poses(quadtree *root, pos_list_t *pos_list, window_pos **head){
 				(*head)->y += (i/2)*((*head)->h/2);
 				(*head)->w /= 2;
 				(*head)->h /= 2;
-				(*head)->win = root->chldrn[i]->w;
 				*head = new_head;
 			} else {
 				window_pos curr_pos = **head;
@@ -274,10 +273,9 @@ void _gather_poses(quadtree *root, pos_list_t *pos_list, window_pos **head){
 }
 
 void gather_positions(quadtree *root, pos_list_t *pos_list, int max_width, int max_height){
-	window_pos **head = malloc(sizeof(window_pos*));
+	window_pos **head;
 	window_pos tmp = {0, 0, max_width, max_height};
-	window_pos *tmp2 = add_pos(pos_list, tmp);
-	(*head) = tmp2;
+	*head = add_pos(pos_list, tmp);
 	_gather_poses(root, pos_list, head);
 }
 
@@ -290,8 +288,9 @@ pos_list_t  *display_wins(quadtree *root, int max_width, int max_height){
 	return pos_list;
 }
 
-void display_positions(pos_list_t *pos_list){
+void
+ display_positions(pos_list_t *pos_list){
 	for(int i = 0; i < pos_list->len; i++){
-		printf("[%d]@(%d,%d): %dx%d\n", pos_list->lst[i].win, pos_list->lst[i].x, pos_list->lst[i].y,pos_list->lst[i].w,pos_list->lst[i].h);
+		printf("[]@(%d,%d): %dx%d\n", pos_list->lst[i].x, pos_list->lst[i].y,pos_list->lst[i].w,pos_list->lst[i].h);
 	}
 }

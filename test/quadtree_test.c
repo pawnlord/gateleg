@@ -17,4 +17,6 @@ int main(){
 	print_tree(root);
 	qt_add_window(root, 9);
 	print_tree(root);
+	pos_list_t * lst = display_wins(root, 200, 100);
+	display_positions(lst);
 }
