@@ -1,35 +1,26 @@
 #include "workspace.h"
 #include <stdio.h>
+#include <string.h>
 
 ws_layout* init_ws(ws_info info){
 	ws_layout* ws = malloc(sizeof(ws_layout));
 	ws->info = info;
 	ws->window_count = 0;
 	ws->layouts = malloc(50*sizeof(window_layout));
+	ws->sz = 50;
+	ws->root = init_root(1, info.max_width, info.max_height); // root represented by 1, but doesn't need to be
 	return ws;
 }
-window_layout* add_window(ws_layout* ws, unsigned long int xid){
-	int quad = 0;
-	for(int i = 0; i < ws->window_count; i++){
-		if(ws->layouts[i].quad == quad){
-			quad+=1;
-		}
-		if(quad >= 4){
-			quad = 0;
-		}
-	}
+window_pos* add_window(ws_layout* ws, unsigned long int xid){
 	int i = ws->window_count;
-	int is_right = quad%2;
-	int is_down = quad>1;
-	ws->layouts[i].xid = xid;
-	ws->layouts[i].quad = quad;
-	ws->layouts[i].x = is_right * (ws->info.max_width/2);
-	ws->layouts[i].y = is_down * (ws->info.max_height/2);
-	ws->layouts[i].width = ws->info.max_width/2;
-	ws->layouts[i].height = ws->info.max_height/2;
-	ws->layouts[i].lock = 0;
 	ws->window_count += 1;
-	return (ws->layouts)+i;
+	if(ws->window_count == ws->sz){
+		ws->sz *= 1.5;
+		ws->layouts = realloc(ws->layouts, ws->sz*sizeof(window_layout));
+	}
+	ws->layouts[i].xid = xid;
+	ws->layouts[i].node = qt_add_window(ws->root, xid);
+	return &(ws->layouts[i].node->pos);
 }
 
 void remove_window(ws_layout* ws, unsigned long int xid){
@@ -40,6 +31,7 @@ void remove_window(ws_layout* ws, unsigned long int xid){
 			break;
 		}
 	}
+	qt_remove_win(ws->root, xid);
 	if(id != -1){
 		for(int i = id; i < ws->window_count; i++){
 			ws->layouts[i] = ws->layouts[i+1];
@@ -59,67 +51,17 @@ char get_lock(ws_layout* ws, unsigned long int xid){
 	return w->lock;
 }
 
-void move_horiz(ws_layout* ws, unsigned long int xid){
-	window_layout* w;
-	for(int i = 0; i < ws->window_count; i++){
-		if(ws->layouts[i].xid == xid){
-			w = ws->layouts+i;
-			break;
-		}
-	}
-	int starting_quad = w->quad;
-	int is_right = w->quad%2;
 
-
-	if(is_right){
-		w->quad -= 1;
-	} else {
-		w->quad += 1;
-	}
-
-	w->width = ws->info.max_width/2;
-
-	w->lock = 1;
-	for(int i = 0; i < ws->window_count; i++){
-		int temp_quad = ws->layouts[i].quad;
-		if(temp_quad == w->quad && ws->layouts[i].xid != xid && !ws->layouts[i].lock){
-			move_horiz(ws, ws->layouts[i].xid);
-		}
-	}
-	w->lock = 0;
-	reset_positions(ws);
+void move_horiz(ws_layout* ws, unsigned long int xid, dir_t d){
+	quadtree *node = qt_get_win(ws->root, xid);
+	swap_branch(node, find_branch(node, d));
 }
 
-void move_vert(ws_layout* ws, unsigned long int xid){
-	window_layout* w;
-	for(int i = 0; i < ws->window_count; i++){
-		if(ws->layouts[i].xid == xid){
-			w = ws->layouts+i;
-			break;
-		}
-	}
-	int starting_quad = w->quad;
-	int is_up = w->quad>1;
-
-
-	if(is_up){
-		w->quad -= 2;
-	} else{
-		w->quad += 2;
-	}
-
-	w->height = ws->info.max_height/2;
-	w->lock = 1;
-	for(int i = 0; i < ws->window_count; i++){
-		int temp_quad = ws->layouts[i].quad;
-		if(temp_quad == w->quad && ws->layouts[i].xid != xid && !ws->layouts[i].lock){
-			move_vert(ws, ws->layouts[i].xid);
-		}
-	}
-	w->lock = 0;
-	reset_positions(ws);
+void move_vert(ws_layout* ws, unsigned long int xid, dir_t d){
+	quadtree *node = qt_get_win(ws->root, xid);
+	swap_branch(node, find_branch(node, d));
 }
-
+/*
 void expand_horiz(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
@@ -175,6 +117,8 @@ void expand_vert(ws_layout* ws, unsigned long int xid){
 	reset_positions(ws);
 }
 
+ // Unimplemented because they do not make sense in a quad tree. To replace this functionality, this is done automatically if we have space.
+
 void reset_expansion(ws_layout* ws, unsigned long int xid){
 	window_layout* w;
 	for(int i = 0; i < ws->window_count; i++){
@@ -186,56 +130,37 @@ void reset_expansion(ws_layout* ws, unsigned long int xid){
 	w->height = ws->info.max_height/2;
 	w->width = ws->info.max_width/2;
 }
-
+*/
 void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height){
-	window_layout* w;
+	window_layout* win;
 	int i;
 	for(i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
-			w = ws->layouts+i;
+			win = ws->layouts+i;
 			break;
 		}
 	}
-	int difference = abs(w->x-x)+abs(w->y-y)+abs(w->width-width)+abs(w->height-height);
-	w->x = x;
-	w->y = y;
-	w->width = width;
-	w->height = height;
+	window_pos *w = &(win->node->pos);
+	int difference = abs(w->x-x)+abs(w->y-y)+abs(w->w-width)+abs(w->h-height);
 	if(difference){
-		w->quad = -1;
+		qt_remove_win(ws->root, xid); // remove window from our normal structure
+		win->node = malloc(sizeof(quadtree));
+		memset(win->node, 0, sizeof(quadtree));
+		window_pos *w = &(win->node->pos);
+		w->x = x;
+		w->y = y;
+		w->w = width;
+		w->h = height;
 	}
 }
 
 unsigned long int get_next(ws_layout* ws, unsigned long int xid){
-	window_layout* w;
-	int i;
-	for(i = 0; i < ws->window_count; i++){
-		if(ws->layouts[i].xid == xid){
-			w = ws->layouts+i;
-			break;
-		}
-	}
-	// get next to the left
-	int quad = w->quad + 1; // quadrant we're aiming for
-	int quads[4] = {-1};
-	int start = i;
-	// go backwards in the list, looping
-	i = (i-1+ws->window_count)%ws->window_count;
-	for(;i != start; i = (i-1+ws->window_count)%ws->window_count){
-		printf("%d\n", i);
-		window_layout* temp_w = ws->layouts+i;
-		int temp_q = (temp_w->quad - quad + 4) % 4;
-		quads[temp_q] = i;
-	}
+	quadtree *node = qt_get_win(ws->root, xid);
+	quadtree *next_n = find_branch(node, (dir_t){1,0});
+	return next_n->w;
+} // TODO: this does not work
 
-	for(int i = 0; i < 4; i++){
-		if(quads[i] != -1){
-			return ws->layouts[quads[i]].xid;
-		}
-	}
-	return 0;
-}
-
+/*
 void reset_positions(ws_layout* ws){
 	for(int i = 0; i < ws->window_count; i++){
 		window_layout* w = ws->layouts+i;
@@ -245,3 +170,4 @@ void reset_positions(ws_layout* ws){
 		ws->layouts[i].y = is_down * (ws->info.max_height/2);
 	}
 }
+*/

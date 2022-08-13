@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "quadtree.h"
 #define HORIZONTAL 1
 #define VERTICAL 2
 
@@ -11,9 +12,8 @@ typedef struct {
 
 typedef struct {
 	unsigned long int xid;
-	int quad;
 	int expand_flag;
-	int x, y, width, height;
+	quadtree *node;
 	char lock;
 } window_layout;
 
@@ -21,15 +21,17 @@ typedef struct {
 typedef struct {
 	ws_info info;
 	window_layout* layouts;
+	quadtree *root;
 	int window_count;
+	int sz;
 } ws_layout;
 
 ws_layout* init_ws(ws_info info);
-window_layout* add_window(ws_layout* ws, unsigned long int xid); // WARNING, will likely change window_layout* pointer
+window_pos* add_window(ws_layout* ws, unsigned long int xid); // WARNING, will likely change window_layout* pointer
 void remove_window(ws_layout* ws, unsigned long int xid);
 char get_lock(ws_layout* ws, unsigned long int xid);
-void move_horiz(ws_layout* ws, unsigned long int xid);
-void move_vert(ws_layout* ws, unsigned long int xid);
+void move_horiz(ws_layout* ws, unsigned long int xid, dir_t dir);
+void move_vert(ws_layout* ws, unsigned long int xid, dir_t dir);
 void expand_horiz(ws_layout* ws, unsigned long int xid);
 void expand_vert(ws_layout* ws, unsigned long int xid);
 void reset_expansion(ws_layout* ws, unsigned long int xid);

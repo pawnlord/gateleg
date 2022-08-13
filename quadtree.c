@@ -38,28 +38,50 @@ int count_direct_chldrn(quadtree *tree){
 	}
 	return num;
 }
+
+void augment_down(quadtree *node){
+	if(node->prnt != NULL){
+		node->pos = node->prnt->pos;
+		if(node->prnt->chldrn[node->y*2 + (!node->x)] != NULL || node->prnt->chldrn[(!node->y)*2 + (!node->x)] != NULL){
+			node->pos.w /= 2;
+			node->pos.x += node->pos.w * node->x;
+		}
+		if(node->prnt->chldrn[(!node->y)*2 + node->x] != NULL){
+			node->pos.h /= 2;
+			node->pos.y += node->pos.h * node->y;
+		}
+	}
+	for(int i = 0; i < 4; i++){
+		if(node->chldrn[i] != NULL){
+			augment_down(node->chldrn[i]);
+		}
+	}
+}
+
 void set_branch(quadtree *prnt, quadtree *brnch, int x, int y){
 	set_coords(brnch, x, y);
 	brnch->prnt = prnt;
 	prnt->chldrn[x+y*2] = brnch;
+	augment_down(prnt);
 }
 
-quadtree *init_root(int root){
+
+quadtree *init_root(int root, int w, int h){
 	quadtree *new_tree = (quadtree*)malloc(sizeof(quadtree));
 	memset(new_tree, 0, sizeof(quadtree)); // intitialize all branches to NULL
 	new_tree->w = root;
+	new_tree->pos = (window_pos){0,0,w,h,root};
 	return new_tree;
 }
 void add_branch(quadtree *prnt, quadtree *branch){
 	remove_branch(branch);
 	if(qt_isempty(prnt) && prnt->prnt != NULL){
-		int w = prnt->w;
-		prnt->w = 0;
 		quadtree *new_branch = (quadtree*)malloc(sizeof(quadtree));
-		new_branch->w = w;
-		set_branch(prnt, new_branch, 0, 0);
-		set_branch(prnt, branch, 1, 0); // kind of hard-code-y, not prefered
-		return;	
+		memset(new_branch, 0, sizeof(quadtree));
+		set_branch(prnt->prnt, new_branch, prnt->x, prnt->y);
+		set_branch(new_branch, prnt, 0, 0);
+		set_branch(new_branch, branch, 1, 0); // kind of hard-code-y, not prefered
+		return;
 	}
 	for(int i = 0; i < 4; i++){
 		if(prnt->chldrn[i] == NULL){
@@ -79,11 +101,12 @@ void add_branch(quadtree *prnt, quadtree *branch){
 	}
 	add_branch(best, branch);
 }
-void qt_add_window(quadtree *prnt, int w){
+quadtree *qt_add_window(quadtree *prnt, int w){
 	quadtree *new_branch = malloc(sizeof(quadtree));
 	memset(new_branch, 0, sizeof(quadtree)); // intitialize all branches to NULL
 	new_branch->w = w;
 	add_branch(prnt, new_branch);
+	return new_branch;
 }
 void swap_branch(quadtree *arg1, quadtree *arg2){
 	if(arg1 != NULL && arg2 != NULL){
@@ -223,6 +246,9 @@ quadtree *qt_get_win(quadtree *root, int w){
 
 void qt_remove_win(quadtree *root, int w){
 	quadtree *tr = qt_get_win(root,w);
+	if(tr == NULL){ // window was not part of our tree structure
+		return;
+	}
 	quadtree *prnt = tr->prnt;
 	delete_tree(tr);
 	int chld_num = count_direct_chldrn(prnt);
@@ -259,6 +285,7 @@ void _gather_poses(quadtree *root, pos_list_t *pos_list, window_pos **head){
 				(*head)->w /= 2;
 				(*head)->h /= 2;
 				(*head)->win = root->chldrn[i]->w;
+				root->chldrn[i]->pos = (**head);
 				*head = new_head;
 			} else {
 				window_pos curr_pos = **head;
@@ -266,6 +293,7 @@ void _gather_poses(quadtree *root, pos_list_t *pos_list, window_pos **head){
 				(*head)->y += (i/2)*((*head)->h/2);
 				(*head)->w /= 2;
 				(*head)->h /= 2;
+				root->chldrn[i]->pos = (**head);
 				_gather_poses(root->chldrn[i], pos_list, head);
 				**head = curr_pos; // reset where ever the sub function left off to the current layers dimensions
 			}
@@ -279,6 +307,7 @@ void gather_positions(quadtree *root, pos_list_t *pos_list, int max_width, int m
 	window_pos *tmp2 = add_pos(pos_list, tmp);
 	(*head) = tmp2;
 	_gather_poses(root, pos_list, head);
+	pos_list->len--;
 }
 
 pos_list_t  *display_wins(quadtree *root, int max_width, int max_height){
@@ -290,8 +319,13 @@ pos_list_t  *display_wins(quadtree *root, int max_width, int max_height){
 	return pos_list;
 }
 
-void display_positions(pos_list_t *pos_list){
-	for(int i = 0; i < pos_list->len; i++){
-		printf("[%d]@(%d,%d): %dx%d\n", pos_list->lst[i].win, pos_list->lst[i].x, pos_list->lst[i].y,pos_list->lst[i].w,pos_list->lst[i].h);
+void display_positions(quadtree *root){
+	for(int i = 0; i < 4; i++){
+		if(root->chldrn[i] != NULL && root->chldrn[i]->w != 0){
+			window_pos p = root->chldrn[i]->pos;
+			printf("[%d]@(%d,%d): %dx%d\n", root->chldrn[i]->w, p.x, p.y, p.w, p.h);
+		} else if(root->chldrn[i] != NULL){
+			display_positions(root->chldrn[i]);
+		}
 	}
 }

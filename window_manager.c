@@ -67,7 +67,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
-	window_layout* l = add_window(wm->workspace[wm->wsnum], w);
+	window_pos* l = add_window(wm->workspace[wm->wsnum], w);
 	if(x_window_attrs.override_redirect == True){
 		log_msg(wm->log, "override called");
 		return;
@@ -81,19 +81,17 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	if(wmap_get(wm->clients_, w) != -1){
 		unframe(wm, w);
 	}
-	l->lock = 1;
 	Window frame = XCreateSimpleWindow(
 			wm->display_,
 			wm->root_,
 			l->x + BORDER,
 			l->y + BORDER,
-			l->width - BORDER*2,
-			l->height - BORDER*2,
+			l->w - BORDER*2,
+			l->h - BORDER*2,
 			BORDER_WIDTH,
 			BORDER_COLOR,
 			BG_COLOR
 		);
-	l->lock = 0;
 	XSelectInput(
 			wm->display_,
 			frame,
@@ -293,9 +291,7 @@ void run_wm(window_manager* wm){
 				if(frame != -1){
 					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
 					XResizeWindow(wm->display_, frame, e->width, e->height);
-					if(get_lock(wm->workspace[wm->wsnum], e->window) == 0){
-						move_resize_lo(wm->workspace[wm->wsnum], e->window, e->x-BORDER, e->y-BORDER, e->width+BORDER*2, e->height+BORDER*2);
-					}
+					move_resize_lo(wm->workspace[wm->wsnum], e->window, e->x-BORDER, e->y-BORDER, e->width+BORDER*2, e->height+BORDER*2);
 				}
 				XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
 			}
@@ -460,21 +456,27 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
-		move_horiz(wm->workspace[wm->wsnum], e->window);
+		dir_t d = {1,0};
+		d.x *= (e->keycode == XKeysymToKeycode(wm->display_, XK_Right))?1:-1;
+		move_horiz(wm->workspace[wm->wsnum], e->window, d);
 		tile_windows(wm);
 	}
+	// --- WARNING ---
+	// expansion is currently not meant to do anything
+	/*
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_H))){
-		expand_horiz(wm->workspace[wm->wsnum], e->window);
+		// expand_horiz(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_G))){
-		reset_expansion(wm->workspace[wm->wsnum], e->window);
+		// reset_expansion(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_V))){
-		expand_vert(wm->workspace[wm->wsnum], e->window);
+		// expand_vert(wm->workspace[wm->wsnum], e->window);
 		tile_windows(wm);
 	}
+	*/
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_N))){
 		if(fork() == 0){
 			system(terminal);
@@ -483,7 +485,9 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Up)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Down)))){
-		move_vert(wm->workspace[wm->wsnum], e->window);
+		dir_t d = {0,1};
+		d.y *= (e->keycode == XKeysymToKeycode(wm->display_, XK_Down))?1:-1;
+		move_vert(wm->workspace[wm->wsnum], e->window, d);
 		tile_windows(wm);
 	}
 	XRaiseWindow(wm->display_, e->window);
@@ -555,20 +559,19 @@ void tile_windows(window_manager* wm){
 	ws_layout* workspace = wm->workspace[wm->wsnum];
 	for(int i = 0; i < workspace->window_count; i++){
 		Window w = workspace->layouts[i].xid;
-		window_layout* lo = workspace->layouts+i;
-		lo->lock = 1;
+		window_layout *lo_full = workspace->layouts+i;
+		window_pos *lo = &(lo_full->node->pos);
 		Window frame = wmap_get(wm->clients_, w);
-		if(frame != -1 && lo->quad >= 0){
+		if(frame != -1){
 			char* temp = malloc(100);
 			memset(temp, 0, 100);
-			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->width, lo->height);
+			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->w, lo->h);
 			log_msg(wm->log, temp);
 			free(temp);
-			XResizeWindow(wm->display_, w, lo->width - BORDER*2, lo->height - BORDER*2);
-			XResizeWindow(wm->display_, frame, lo->width - BORDER*2, lo->height - BORDER*2);
+			XResizeWindow(wm->display_, w, lo->w - BORDER*2, lo->h - BORDER*2);
+			XResizeWindow(wm->display_, frame, lo->w - BORDER*2, lo->h - BORDER*2);
 			XMoveWindow(wm->display_, frame, lo->x + BORDER, lo->y + BORDER);
 		}
-		lo->lock = 0;
 	}
 }
 
