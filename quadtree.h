@@ -25,7 +25,8 @@ typedef struct{
 	int size;
 } pos_list_t;
 
-quadtree *init_root(int root, int w, int h);
+quadtree *init_root(int root, int w, int h, int headx, int heady);
+void reset_root(quadtree *root, int w, int h, int headx, int heady);
 void add_branch(quadtree *prnt, quadtree *branch);
 quadtree *qt_add_window(quadtree *prnt, int w);
 void swap_branch(quadtree *arg1, quadtree *arg2);

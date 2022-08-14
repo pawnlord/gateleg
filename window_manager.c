@@ -1,5 +1,6 @@
 #include "window_manager.h"
 #include <X11/Xutil.h>
+#include <stdint.h>
 #define BORDER 40
 #define MODMASK Mod4Mask
 FILE* main_log;
@@ -111,6 +112,7 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	grab_key(wm, XK_G, MODMASK, w);
 	grab_key(wm, XK_V, MODMASK, w);
 	grab_key(wm, XK_H, MODMASK, w);
+	grab_key(wm, XK_M, MODMASK, w);
 	grab_key(wm, XK_Left, MODMASK | ShiftMask, w);
 	grab_key(wm, XK_Right, MODMASK | ShiftMask, w);
 	grab_key(wm, XK_Up, MODMASK | ShiftMask, w);
@@ -141,9 +143,10 @@ void unframe(window_manager* wm, Window w){
 	XReparentWindow(wm->display_, w, wm->root_, 0, 0);
 	XRemoveFromSaveSet(wm->display_, w);
 	XDestroyWindow(wm->display_, frame);
-	wmap_set(wm->clients_, w, 11111111);
+	wmap_set(wm->clients_, w, -1);
 	wm->focus = wm->root_;
 	XSetInputFocus(wm->display_, wm->focus, RevertToNone, CurrentTime);
+	tile_windows(wm);
 }
 Window get_lowest_subwindow(window_manager* wm, Window parent){
 	Window tw, win;
@@ -277,28 +280,31 @@ void run_wm(window_manager* wm){
 				frame_changes.sibling = e->above;
 				frame_changes.stack_mode = e->detail;
 
-				XWindowChanges window_changes = frame_changes;
-				window_changes.x = 0;
-				window_changes.y = 0;
 				Window frame = wmap_get(wm->clients_, e->window);
-
+				XWindowChanges window_changes = frame_changes;
+				if(frame != -1){
+					window_changes.x = 0;
+					window_changes.y = 0;
+				}
 				char* temp = malloc(100);
 				memset(temp, 0, 100);
-				sprintf(temp, "Configure Request: %d, %d, %d, %d", e->window, frame, frame_changes.width, frame_changes.height);
+				sprintf(temp, "Configure Request: w: %d (f: %d) x: %d y: %d w: %d h: %d", e->window, frame, e->x, e->y, e->width, e->height);
 				log_msg(wm->log, temp);
 				free(temp);
 
 				if(frame != -1){
+					stat_log_msg("asd");
 					XConfigureWindow(wm->display_, frame, e->value_mask, &frame_changes);
-					XResizeWindow(wm->display_, frame, e->width, e->height);
+					XResizeWindow(wm->display_, frame, e->width+BORDER*2, e->height+BORDER*2);
 					move_resize_lo(wm->workspace[wm->wsnum], e->window, e->x-BORDER, e->y-BORDER, e->width+BORDER*2, e->height+BORDER*2);
 				}
 				XConfigureWindow(wm->display_, e->window, e->value_mask, &window_changes);
+				tile_windows(wm);
 			}
 			break;
 			case UnmapNotify:{
 				XUnmapEvent *e = &(main_event.xunmap);
-				if(wmap_get(wm->clients_, e->window) == 0 || e->event == wm->root_){
+				if(wmap_get(wm->clients_, e->window) == -1 || e->event == wm->root_){
 					break;
 				}
 				unframe(wm, e->window);
@@ -327,6 +333,7 @@ void run_wm(window_manager* wm){
 					None,
 					None
 				);
+				tile_windows(wm);
 			}
 			break;
 			case KeyPress:{
@@ -396,9 +403,12 @@ void run_wm(window_manager* wm){
 	}
 }
 int OnXError(Display* display, XErrorEvent* e){
-	char* temp = malloc(100);
-	memset(temp, 0, 100);
+	char* temp = malloc(200);
+	memset(temp, 0, 200);
 	XGetErrorText(display, e->error_code, temp, 99);
+	if(e->resourceid != 0){
+		sprintf(temp, "%s (Window %d)", temp, e->resourceid);
+	}
 	log_msg(main_log, temp);
 	free(temp);
 	return 0;
@@ -431,18 +441,20 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		if(wm->workspace[n] == 0){
 			wm->workspace[n] = init_ws(wm->workspace[wm->wsnum]->info);
 		}
-		if(e->state & (MODMASK | ShiftMask)){
+
+		if(e->state & (ShiftMask)){
 			remove_window(wm->workspace[wm->wsnum], e->window);
 			add_window(wm->workspace[n], e->window);
 		}
+
 		switch_spaces(wm, wm->wsnum, n);
+
 		wm->wsnum = n;
 		tile_windows(wm);
-		char* temp = malloc(100);
-		memset(temp, 0, 100);
+
+		char* temp = malloc(100); memset(temp, 0, 100);
 		sprintf(temp, "workspace number %d", n);
-		log_msg(wm->log, temp);
-		free(temp);
+		log_msg(wm->log, temp); free(temp);
 	}
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_F))){
 		Window w = e->window;
@@ -454,10 +466,16 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_R))){
 		tile_windows(wm);
 	}
+
+	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_M))){
+		Window w = e->window;
+		toggle_moveability(wm->workspace[wm->wsnum], w);
+	}
 	if(((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Left)))
 	   || ((e->state & (MODMASK | ShiftMask)) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Right)))){
 		dir_t d = {1,0};
 		d.x *= (e->keycode == XKeysymToKeycode(wm->display_, XK_Right))?1:-1;
+		stat_log_msg("Move horizontal");
 		move_horiz(wm->workspace[wm->wsnum], e->window, d);
 		tile_windows(wm);
 	}
@@ -555,23 +573,89 @@ int handle_button_press(window_manager* wm, XButtonEvent* e){
 	last_focus = focus;
 }
 
+get_property_t *get_property(Display *display_, Window w, const char *prop_name, int sz){
+	get_property_t *prop = malloc(sizeof(get_property_t));
+	prop->prop_return = malloc(sz*4);
+	XGetWindowProperty(display_, w, XInternAtom(display_, prop_name, True),
+				0, sz, False, AnyPropertyType,
+				&prop->ret_type, &prop->actual_fmt, &prop->nir, &prop->bar, &prop->prop_return
+			);
+	return prop;
+}
+
+
+typedef struct{
+	uint32_t l,r,t,b;
+}strut_t;
+typedef struct{
+	strut_t st;
+	uint32_t lsy,ley,rsy,rey,tsx,tex,bsx,bex;
+}strut_partial_t;
+int has_strut_info(char *prop_rtn){
+	for(int i = 0; i < 12; i++){
+		if(prop_rtn[i] != 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void resize_workspace(ws_layout *workspace, strut_t *st){
+	workspace->info.max_width -= st->r;
+	workspace->info.max_height -= st->b;
+	workspace->x += st->l;
+	workspace->y += st->t;
+	reset_root(workspace->root, workspace->info.max_width, workspace->info.max_height, workspace->x, workspace->y);
+}
+
+int check_layout_properties(window_manager *wm, ws_layout *workspace, Window w, window_layout *lo){
+	window_pos *pos = &(lo->node->pos);
+	strut_t* st;
+	get_property_t *prop  = get_property(wm->display_, w, "_NET_WM_STRUT_PARTIAL", 12);
+	if(prop->ret_type == None){
+		prop = get_property(wm->display_, w, "_NET_WM_STRUT", 4);
+	}
+	if(prop->ret_type != None){
+		stat_log_msg("dasdas");
+		st = (strut_t*) prop->prop_return;
+		char *temp = malloc(1000);memset(temp,0,1000);
+		sprintf(temp, "current position %d: %d,%d %dx%d",w,pos->x,pos->y,pos->w,pos->h);
+		log_msg(wm->log, temp); free(temp);
+		remove_win_from_struct(workspace, w, pos->x, pos->y, pos->w, pos->h);
+		resize_workspace(workspace, st);
+		lo->is_moveable = 1;
+	}
+	free(prop->prop_return);
+	free(prop);
+	return prop->ret_type != None;
+}
+
 void tile_windows(window_manager* wm){
 	ws_layout* workspace = wm->workspace[wm->wsnum];
+	log_msg(wm->log, "tiling");
 	for(int i = 0; i < workspace->window_count; i++){
 		Window w = workspace->layouts[i].xid;
+
 		window_layout *lo_full = workspace->layouts+i;
 		window_pos *lo = &(lo_full->node->pos);
+
+		// Get if window currently has set it's position with ewmh
+		check_layout_properties(wm, workspace, w, lo_full);
+
+		lo_full->lock = 1;
+
 		Window frame = wmap_get(wm->clients_, w);
 		if(frame != -1){
 			char* temp = malloc(100);
 			memset(temp, 0, 100);
-			sprintf(temp, "Resizing x: %d y: %d w: %d h: %d", lo->x, lo->y, lo->w, lo->h);
+			sprintf(temp, "Resizing w: %d x: %d y: %d w: %d h: %d", w, lo->x, lo->y, lo->w, lo->h);
 			log_msg(wm->log, temp);
 			free(temp);
 			XResizeWindow(wm->display_, w, lo->w - BORDER*2, lo->h - BORDER*2);
 			XResizeWindow(wm->display_, frame, lo->w - BORDER*2, lo->h - BORDER*2);
 			XMoveWindow(wm->display_, frame, lo->x + BORDER, lo->y + BORDER);
 		}
+		lo_full->lock = 0;
 	}
 }
 

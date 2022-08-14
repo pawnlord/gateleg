@@ -1,6 +1,7 @@
 #include "workspace.h"
 #include <stdio.h>
 #include <string.h>
+#include "logger.h"
 
 ws_layout* init_ws(ws_info info){
 	ws_layout* ws = malloc(sizeof(ws_layout));
@@ -8,7 +9,7 @@ ws_layout* init_ws(ws_info info){
 	ws->window_count = 0;
 	ws->layouts = malloc(50*sizeof(window_layout));
 	ws->sz = 50;
-	ws->root = init_root(1, info.max_width, info.max_height); // root represented by 1, but doesn't need to be
+	ws->root = init_root(1, info.max_width, info.max_height, 0, 0); // root represented by 1, but doesn't need to be
 	return ws;
 }
 window_pos* add_window(ws_layout* ws, unsigned long int xid){
@@ -20,6 +21,7 @@ window_pos* add_window(ws_layout* ws, unsigned long int xid){
 	}
 	ws->layouts[i].xid = xid;
 	ws->layouts[i].node = qt_add_window(ws->root, xid);
+	ws->layouts[i].is_moveable = 0; // assume we don't need to move it until requested otherwise
 	return &(ws->layouts[i].node->pos);
 }
 
@@ -54,12 +56,14 @@ char get_lock(ws_layout* ws, unsigned long int xid){
 
 void move_horiz(ws_layout* ws, unsigned long int xid, dir_t d){
 	quadtree *node = qt_get_win(ws->root, xid);
-	swap_branch(node, find_branch(node, d));
+	if(node != NULL){
+		quadtree *new_node = find_branch(node, d);
+		swap_branch(node, find_branch(node, d));
+	}
 }
 
 void move_vert(ws_layout* ws, unsigned long int xid, dir_t d){
-	quadtree *node = qt_get_win(ws->root, xid);
-	swap_branch(node, find_branch(node, d));
+	move_horiz(ws, xid, d);
 }
 /*
 void expand_horiz(ws_layout* ws, unsigned long int xid){
@@ -131,7 +135,7 @@ void reset_expansion(ws_layout* ws, unsigned long int xid){
 	w->width = ws->info.max_width/2;
 }
 */
-void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height){
+void remove_win_from_struct(ws_layout *ws, unsigned long int xid, int x, int y, int width, int height){
 	window_layout* win;
 	int i;
 	for(i = 0; i < ws->window_count; i++){
@@ -140,17 +144,48 @@ void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int widt
 			break;
 		}
 	}
+
+	qt_remove_win(ws->root, xid); // remove window from our normal structure
+	win->node = malloc(sizeof(quadtree));
+	memset(win->node, 0, sizeof(quadtree));
 	window_pos *w = &(win->node->pos);
-	int difference = abs(w->x-x)+abs(w->y-y)+abs(w->w-width)+abs(w->h-height);
-	if(difference){
-		qt_remove_win(ws->root, xid); // remove window from our normal structure
-		win->node = malloc(sizeof(quadtree));
-		memset(win->node, 0, sizeof(quadtree));
-		window_pos *w = &(win->node->pos);
-		w->x = x;
-		w->y = y;
-		w->w = width;
-		w->h = height;
+	w->x = x;
+	w->y = y;
+	w->w = width;
+	w->h = height;
+}
+void toggle_moveability(ws_layout *ws, unsigned long int xid){
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			ws->layouts[i].is_moveable = !ws->layouts[i].is_moveable;
+		}
+	}
+}
+void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height){
+	window_layout* win = NULL;
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			win = ws->layouts+i;
+			break;
+		}
+	}
+	if(win != NULL){
+		if(win->is_moveable){
+			window_pos *w = &(win->node->pos);
+			w->x = x;
+			w->y = y;
+			w->w = width;
+			w->h = height;
+		}
+	} else{
+		stat_log_msg("No Window Found");
+	}
+}
+window_pos *get_position(ws_layout *ws, unsigned long int xid){
+	for(int i = 0; i < ws->window_count; i++){
+		if(ws->layouts[i].xid == xid){
+			return &(ws->layouts[i].node->pos);
+		}
 	}
 }
 

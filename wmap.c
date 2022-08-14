@@ -1,4 +1,5 @@
 #include "wmap.h"
+#include "logger.h"
 
 int hashw(Window w){
 	return w&4095;
@@ -16,7 +17,7 @@ window_map* init_wmap(){
 }
 
 void wmap_set(window_map* wm, Window key, Window val){
-	int idx = hashw(key);
+	unsigned short idx = hashw(key);
 	if(wm->buckets[idx].n == 0){
 		wm->buckets[idx].n = 1;
 		wm->buckets[idx].keys = malloc(sizeof(Window));

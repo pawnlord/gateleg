@@ -1,8 +1,12 @@
 #include "logger.h"
 #include <time.h>
+#include <stdarg.h>
+
+FILE* static_log;
 
 FILE* open_log(char* name){
 	FILE* fp = fopen(name, "w+");
+	static_log = fp;
 	return fp;
 }
 
@@ -16,4 +20,13 @@ void log_msg(FILE* log, char* msg){
 	fputs(final_msg, log);
 	free(final_msg);
 	fflush(log);;
+}
+
+void stat_log_msg(char* fmt, ...){
+	char* msg = malloc(1000);
+	va_list args;
+	va_start(args, fmt);
+	sprintf(msg, fmt, args);
+	log_msg(static_log, msg);
+	free(msg);
 }

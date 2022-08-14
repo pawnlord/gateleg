@@ -23,6 +23,16 @@ typedef struct {
 	int wsnum;
 } window_manager;
 
+typedef struct{
+	Window w;
+	long loff, llen;
+	Atom req_type;
+	Atom ret_type;
+	int actual_fmt;
+	unsigned long nir,bar;
+	unsigned char *prop_return;
+}get_property_t;
+
 int create_window_manager(window_manager* wm);
 void init_window_manager(window_manager* wm, Display* display);
 void destroy_window_manager(window_manager* wm);

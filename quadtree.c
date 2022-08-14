@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include "logger.h"
 
 bool qt_isfull(quadtree *tree){
 	for(int i = 0; i < 4; i++){
@@ -60,18 +61,27 @@ void augment_down(quadtree *node){
 
 void set_branch(quadtree *prnt, quadtree *brnch, int x, int y){
 	set_coords(brnch, x, y);
-	brnch->prnt = prnt;
-	prnt->chldrn[x+y*2] = brnch;
-	augment_down(prnt);
+	if(brnch != NULL && prnt != NULL){
+		brnch->prnt = prnt;
+		prnt->chldrn[x+y*2] = brnch;
+		augment_down(prnt);
+	}
 }
 
 
-quadtree *init_root(int root, int w, int h){
+quadtree *init_root(int root, int w, int h, int headx, int heady){
 	quadtree *new_tree = (quadtree*)malloc(sizeof(quadtree));
 	memset(new_tree, 0, sizeof(quadtree)); // intitialize all branches to NULL
 	new_tree->w = root;
-	new_tree->pos = (window_pos){0,0,w,h,root};
+	new_tree->pos = (window_pos){headx,heady,w,h,root};
 	return new_tree;
+}
+void reset_root(quadtree *root, int w, int h, int headx, int heady){
+	root->pos.x = headx;
+	root->pos.y = heady;
+	root->pos.w = w;
+	root->pos.h = h;
+	augment_down(root);
 }
 void add_branch(quadtree *prnt, quadtree *branch){
 	remove_branch(branch);
@@ -116,6 +126,8 @@ void swap_branch(quadtree *arg1, quadtree *arg2){
 			set_branch(prnt1, arg2, x1, y1);
 			set_branch(prnt2, arg1, x2, y2);
 		}
+	} else {
+		stat_log_msg("Null found in swap branch");
 	}
 }
 
@@ -151,21 +163,23 @@ quadtree *find_brnch_rev(quadtree *tree, find_info *inf){
 	return tree;
 }
 
+
 // tree: current tree we are searching for a neigbor of
 // d: direction we are trying to move (x,y)
 // depth: the current depth we need to traverse to find the neighbor
 quadtree *find_brnch_dpth(quadtree *tree, find_info *inf){
 	if(tree->prnt == NULL){
+		stat_log_msg("No parent of tree %d, skipping", tree->w);
 		return NULL;
 	}
 	dir_t d = inf->init_d;
-	if(tree->x + d.x > 1 || tree->x + d.x < 0 || tree->y + d.y > 1 || tree->y + d.y < 0){
+	int x = tree->x + d.x, y = tree->y + d.y;
+	if(tree->x + d.x > 1 || tree->x + d.x < 0 || tree->y + d.y > 1 || tree->y + d.y < 0 || tree->prnt->chldrn[x+y*2] == NULL){
 		int x = (d.x)?!tree->x:tree->x;
 		int y = (d.y)?!tree->y:tree->y;
 		add_dscnt_point(inf, x, y);
 		return find_brnch_dpth(tree->prnt, inf);
 	}
-	int x = tree->x + d.x, y = tree->y + d.y;
 	if(inf->depth == 0){
 		return tree->prnt->chldrn[x+y*2];
 	}
@@ -180,7 +194,7 @@ quadtree *find_branch(quadtree *tree, dir_t d){
 		inf.cnst_coord.y = tree->y;
 	}
 	quadtree *found_tree = find_brnch_dpth(tree, &inf);
-	free(inf.dscnt_order);
+	if(inf.dscnt_order) {free(inf.dscnt_order);}
 	return found_tree;
 }
 void remove_branch(quadtree *branch){
@@ -254,9 +268,11 @@ void qt_remove_win(quadtree *root, int w){
 	int chld_num = count_direct_chldrn(prnt);
 	if(chld_num == 1){
 		for(int i = 0; i < 4; i++){
-			if(prnt->chldrn[i] != NULL){
+			if(prnt->chldrn[i] != NULL && prnt->prnt != NULL){
 				int x = prnt->x, y = prnt->y;
 				set_branch(prnt->prnt, prnt->chldrn[i], x, y);
+				augment_down(prnt->prnt);
+				free(prnt);
 				return;
 			}
 		}

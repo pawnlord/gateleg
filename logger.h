@@ -7,4 +7,5 @@
 
 FILE* open_log(char* name);
 void log_msg(FILE* log, char* msg);
+void stat_log_msg(char *fmt, ...);
 #endif

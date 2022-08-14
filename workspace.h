@@ -15,6 +15,7 @@ typedef struct {
 	int expand_flag;
 	quadtree *node;
 	char lock;
+	char is_moveable;
 } window_layout;
 
 // full layout manager
@@ -24,6 +25,7 @@ typedef struct {
 	quadtree *root;
 	int window_count;
 	int sz;
+	int x, y;
 } ws_layout;
 
 ws_layout* init_ws(ws_info info);
@@ -35,7 +37,10 @@ void move_vert(ws_layout* ws, unsigned long int xid, dir_t dir);
 void expand_horiz(ws_layout* ws, unsigned long int xid);
 void expand_vert(ws_layout* ws, unsigned long int xid);
 void reset_expansion(ws_layout* ws, unsigned long int xid);
+void remove_win_from_struct(ws_layout *ws, unsigned long int xid, int x, int y, int width, int height);
 void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height);
 unsigned long int get_next(ws_layout* ws, unsigned long int xid);
+window_pos *get_position(ws_layout *ws, unsigned long int xid);
+void toggle_moveability(ws_layout *ws, unsigned long int xid);
 
 void reset_positions(ws_layout* ws);

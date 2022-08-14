@@ -9,12 +9,13 @@ int main(){
 	}
 	qt_add_window(root->chldrn[0], 8);
 	print_tree(root);
-	dir_t t = {1,0};
-	swap_branch(root->chldrn[0]->chldrn[1], find_branch(root->chldrn[0]->chldrn[1], t));
+	dir_t t = {-1,0};
+	swap_branch(root->chldrn[0]->chldrn[0], find_branch(root->chldrn[0]->chldrn[0], t));
 	print_tree(root);
 	quadtree *w = qt_get_win(root, 6);
 	print_tree(w);
 	qt_remove_win(root, 6);
+	qt_get_win(root, 6);
 	print_tree(root);
 	qt_add_window(root, 9);
 	print_tree(root);
