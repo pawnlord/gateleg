@@ -21,6 +21,7 @@ typedef struct {
 	Window focus;
 	FILE* log;
 	int wsnum;
+	char is_ws_switch;
 } window_manager;
 
 typedef struct{

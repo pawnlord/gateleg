@@ -41,6 +41,7 @@ void init_window_manager(window_manager* wm, Display* display){
 	wm->workspace[0] = init_ws(inf);
 	wm->wsnum = 0;
 	wm->focus = wm->root_;
+	wm->is_ws_switch = 0;
 	main_log = wm->log;
 }
 
@@ -308,6 +309,9 @@ void run_wm(window_manager* wm){
 					break;
 				}
 				unframe(wm, e->window);
+				if(!wm->is_ws_switch){
+					remove_window(wm->workspace[wm->wsnum], e->window);
+				}
 			}
 			break;
 			case MapRequest:{
@@ -662,6 +666,7 @@ void tile_windows(window_manager* wm){
 void switch_spaces(window_manager* wm, int src_wsnum, int dst_wsnum){
 	ws_layout* src = wm->workspace[src_wsnum];
 	ws_layout* dst = wm->workspace[dst_wsnum];
+	wm->is_ws_switch = 1;
 	for(int i = 0; i < src->window_count; i++){
 		Window w = src->layouts[i].xid;
 		Window frame = wmap_get(wm->clients_, w);
@@ -672,4 +677,5 @@ void switch_spaces(window_manager* wm, int src_wsnum, int dst_wsnum){
 		Window frame = wmap_get(wm->clients_, w);
 		XMapWindow(wm->display_, frame);
 	}
+	wm->is_ws_switch = 0;
 }
