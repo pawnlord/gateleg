@@ -66,7 +66,7 @@ void unframe(window_manager* wm, Window w);
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned int BORDER_WIDTH = 0;
 	static unsigned long BORDER_COLOR = 0x000000;
-	static unsigned long BG_COLOR = 0x000000;
+	static unsigned long BG_COLOR = 0x1ff0000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
 	window_pos* l = add_window(wm->workspace[wm->wsnum], w);
@@ -310,7 +310,8 @@ void run_wm(window_manager* wm){
 				}
 				unframe(wm, e->window);
 				if(!wm->is_ws_switch){
-					remove_window(wm->workspace[wm->wsnum], e->window);
+					remove_win_from_struct(wm->workspace[wm->wsnum], e->window);
+					tile_windows(wm);
 				}
 			}
 			break;
@@ -436,7 +437,7 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 		printf("Window %d accessed\n", w);
 		XKillClient(wm->display_, e->window);
 */
-		//hid window
+		//hide window
 		Window w = e->window;
 		XIconifyWindow(wm->display_, wm->root_, DefaultScreen(wm->display_));
 	}
@@ -472,6 +473,7 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 	}
 
 	if((e->state & MODMASK) && (e->keycode == XKeysymToKeycode(wm->display_, XK_M))){
+		stat_log_msg("XK_M Pressed");
 		Window w = e->window;
 		toggle_moveability(wm->workspace[wm->wsnum], w);
 	}
@@ -622,10 +624,14 @@ int check_layout_properties(window_manager *wm, ws_layout *workspace, Window w, 
 	if(prop->ret_type != None){
 		stat_log_msg("dasdas");
 		st = (strut_t*) prop->prop_return;
+
 		char *temp = malloc(1000);memset(temp,0,1000);
 		sprintf(temp, "current position %d: %d,%d %dx%d",w,pos->x,pos->y,pos->w,pos->h);
 		log_msg(wm->log, temp); free(temp);
-		remove_win_from_struct(workspace, w, pos->x, pos->y, pos->w, pos->h);
+
+		remove_win_from_struct(workspace, w);
+		move_resize_lo(wm->workspace[wm->wsnum], w, pos->x, pos->y, pos->w, pos->h);
+
 		resize_workspace(workspace, st);
 		lo->is_moveable = 1;
 	}

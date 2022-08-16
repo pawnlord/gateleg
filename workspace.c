@@ -13,8 +13,15 @@ ws_layout* init_ws(ws_info info){
 	return ws;
 }
 window_pos* add_window(ws_layout* ws, unsigned long int xid){
+
 	int i = ws->window_count;
-	ws->window_count += 1;
+	for(int j = 0; j < ws->window_count; j++){
+		if(ws->layouts[i].xid == xid){
+			i = j;
+			break;
+		}
+	}
+	if(i == ws->window_count) {ws->window_count += 1;}
 	if(ws->window_count == ws->sz){
 		ws->sz *= 1.5;
 		ws->layouts = realloc(ws->layouts, ws->sz*sizeof(window_layout));
@@ -135,7 +142,7 @@ void reset_expansion(ws_layout* ws, unsigned long int xid){
 	w->width = ws->info.max_width/2;
 }
 */
-void remove_win_from_struct(ws_layout *ws, unsigned long int xid, int x, int y, int width, int height){
+void remove_win_from_struct(ws_layout *ws, unsigned long int xid){
 	window_layout* win;
 	int i;
 	for(i = 0; i < ws->window_count; i++){
@@ -144,20 +151,18 @@ void remove_win_from_struct(ws_layout *ws, unsigned long int xid, int x, int y, 
 			break;
 		}
 	}
-
-	qt_remove_win(ws->root, xid); // remove window from our normal structure
-	win->node = malloc(sizeof(quadtree));
-	memset(win->node, 0, sizeof(quadtree));
-	window_pos *w = &(win->node->pos);
-	w->x = x;
-	w->y = y;
-	w->w = width;
-	w->h = height;
+	if(win != NULL){
+		qt_remove_win(ws->root, xid); // remove window from our normal structure
+		win->node = malloc(sizeof(quadtree));
+		memset(win->node, 0, sizeof(quadtree));
+		window_pos *w = &(win->node->pos);
+	}
 }
 void toggle_moveability(ws_layout *ws, unsigned long int xid){
 	for(int i = 0; i < ws->window_count; i++){
 		if(ws->layouts[i].xid == xid){
 			ws->layouts[i].is_moveable = !ws->layouts[i].is_moveable;
+			break;
 		}
 	}
 }

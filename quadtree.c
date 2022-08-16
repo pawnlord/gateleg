@@ -40,6 +40,17 @@ int count_direct_chldrn(quadtree *tree){
 	return num;
 }
 
+quadtree *get_spacial_tree(quadtree *tree, dir_t d){
+	quadtree *new_tree = tree->chldrn[d.x+d.y*2];
+	if(new_tree == NULL){
+		new_tree = tree->chldrn[(!d.x)+d.y*2];
+	}
+	if(new_tree == NULL){
+		new_tree = tree->chldrn[d.x+(!d.y)*2];
+	}
+	return new_tree;
+}
+
 void augment_down(quadtree *node){
 	if(node->prnt != NULL){
 		node->pos = node->prnt->pos;
@@ -151,14 +162,14 @@ void add_dscnt_point(find_info *inf, int x, int y){
 	inf->dscnt_order[inf->depth].y = y;
 	inf->depth+=1;
 }
-
 quadtree *find_brnch_rev(quadtree *tree, find_info *inf){
-	while(inf->depth >= 0){
-		dir_t d = inf->dscnt_order[inf->depth];
-		if(tree->chldrn[d.x+d.y*2] == NULL){
+	while(inf->depth > 0){
+		dir_t d = inf->dscnt_order[--inf->depth];
+		quadtree *new_tree = get_spacial_tree(tree, d);
+		if(new_tree == NULL){
 			return tree;
 		}
-		tree = tree->chldrn[d.x+d.y*2];
+		tree = new_tree;
 	}
 	return tree;
 }
@@ -169,11 +180,11 @@ quadtree *find_brnch_rev(quadtree *tree, find_info *inf){
 // depth: the current depth we need to traverse to find the neighbor
 quadtree *find_brnch_dpth(quadtree *tree, find_info *inf){
 	if(tree->prnt == NULL){
-		stat_log_msg("No parent of tree %d, skipping", tree->w);
 		return NULL;
 	}
 	dir_t d = inf->init_d;
 	int x = tree->x + d.x, y = tree->y + d.y;
+	quadtree *new_tree = get_spacial_tree(tree, (dir_t){x,y});
 	if(tree->x + d.x > 1 || tree->x + d.x < 0 || tree->y + d.y > 1 || tree->y + d.y < 0 || tree->prnt->chldrn[x+y*2] == NULL){
 		int x = (d.x)?!tree->x:tree->x;
 		int y = (d.y)?!tree->y:tree->y;

@@ -37,7 +37,7 @@ void move_vert(ws_layout* ws, unsigned long int xid, dir_t dir);
 void expand_horiz(ws_layout* ws, unsigned long int xid);
 void expand_vert(ws_layout* ws, unsigned long int xid);
 void reset_expansion(ws_layout* ws, unsigned long int xid);
-void remove_win_from_struct(ws_layout *ws, unsigned long int xid, int x, int y, int width, int height);
+void remove_win_from_struct(ws_layout *ws, unsigned long int xid);
 void move_resize_lo(ws_layout* ws, unsigned long int xid, int x, int y, int width, int height);
 unsigned long int get_next(ws_layout* ws, unsigned long int xid);
 window_pos *get_position(ws_layout *ws, unsigned long int xid);
