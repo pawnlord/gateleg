@@ -40,13 +40,16 @@ int count_direct_chldrn(quadtree *tree){
 	return num;
 }
 
-quadtree *get_spacial_tree(quadtree *tree, dir_t d){
+quadtree *get_spacial_tree(quadtree *tree, dir_t d, quadtree *origin){
 	quadtree *new_tree = tree->chldrn[d.x+d.y*2];
-	if(new_tree == NULL){
-		new_tree = tree->chldrn[(!d.x)+d.y*2];
-	}
-	if(new_tree == NULL){
+	if(new_tree == NULL || new_tree == origin){
 		new_tree = tree->chldrn[d.x+(!d.y)*2];
+	}
+	if(new_tree == NULL || new_tree == origin){
+		new_tree = tree->chldrn[(!d.x)+(!d.y)*2];
+	}
+	if(new_tree == NULL || new_tree == origin){
+		new_tree = tree->chldrn[(!d.x)+d.y*2];
 	}
 	return new_tree;
 }
@@ -165,7 +168,7 @@ void add_dscnt_point(find_info *inf, int x, int y){
 quadtree *find_brnch_rev(quadtree *tree, find_info *inf){
 	while(inf->depth > 0){
 		dir_t d = inf->dscnt_order[--inf->depth];
-		quadtree *new_tree = get_spacial_tree(tree, d);
+		quadtree *new_tree = get_spacial_tree(tree, d, NULL);
 		if(new_tree == NULL){
 			return tree;
 		}
@@ -184,17 +187,17 @@ quadtree *find_brnch_dpth(quadtree *tree, find_info *inf){
 	}
 	dir_t d = inf->init_d;
 	int x = tree->x + d.x, y = tree->y + d.y;
-	quadtree *new_tree = get_spacial_tree(tree, (dir_t){x,y});
-	if(tree->x + d.x > 1 || tree->x + d.x < 0 || tree->y + d.y > 1 || tree->y + d.y < 0 || tree->prnt->chldrn[x+y*2] == NULL){
+	quadtree *new_tree = get_spacial_tree(tree->prnt, (dir_t){x,y}, tree);
+	if(tree->x + d.x > 1 || tree->x + d.x < 0 || tree->y + d.y > 1 || tree->y + d.y < 0 || new_tree == NULL){
 		int x = (d.x)?!tree->x:tree->x;
 		int y = (d.y)?!tree->y:tree->y;
 		add_dscnt_point(inf, x, y);
 		return find_brnch_dpth(tree->prnt, inf);
 	}
 	if(inf->depth == 0){
-		return tree->prnt->chldrn[x+y*2];
+		return new_tree;
 	}
-	return find_brnch_rev(tree->prnt->chldrn[x+y*2], inf);
+	return find_brnch_rev(new_tree, inf);
 }
 quadtree *find_branch(quadtree *tree, dir_t d){
 	find_info inf = {d,{-1,-1}, 0, NULL, 0};

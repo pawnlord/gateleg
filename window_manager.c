@@ -309,9 +309,7 @@ void run_wm(window_manager* wm){
 					break;
 				}
 				unframe(wm, e->window);
-				if(!wm->is_ws_switch){
-					remove_win_from_struct(wm->workspace[wm->wsnum], e->window);
-				}
+				remove_win_from_struct(wm->workspace[wm->wsnum], e->window);
 				tile_windows(wm);
 			}
 			break;
