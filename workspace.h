@@ -12,7 +12,6 @@ typedef struct {
 
 typedef struct {
 	unsigned long int xid;
-	int expand_flag;
 	quadtree *node;
 	char lock;
 	char is_moveable;

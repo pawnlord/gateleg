@@ -154,7 +154,7 @@ void remove_win_from_struct(ws_layout *ws, unsigned long int xid){
 	if(win != NULL){
 		qt_remove_win(ws->root, xid); // remove window from our normal structure
 		win->node = malloc(sizeof(quadtree));
-		memset(win->node, 0, sizeof(quadtree));
+		win->node->w=-1;
 		window_pos *w = &(win->node->pos);
 	}
 }
@@ -195,9 +195,18 @@ window_pos *get_position(ws_layout *ws, unsigned long int xid){
 }
 
 unsigned long int get_next(ws_layout* ws, unsigned long int xid){
-	quadtree *node = qt_get_win(ws->root, xid);
-	quadtree *next_n = find_branch(node, (dir_t){1,0});
-	return next_n->w;
+	if(ws->window_count == 0)
+		return 0;
+	for(int i = 0; i < ws->window_count-1; i++){
+		if(ws->layouts[i].xid == xid){
+			for(int j=i+1; j < ws->window_count; j++){
+				if(ws->layouts[j].node->w != -1)
+					return ws->layouts[j].xid;
+			}
+			break;
+		}
+	}
+	return ws->layouts[0].xid;
 } // TODO: this does not work
 
 /*

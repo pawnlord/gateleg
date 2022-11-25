@@ -518,13 +518,15 @@ int handle_key_press(window_manager* wm, XKeyEvent* e){
 
 	if((e->state & Mod1Mask) && (e->keycode == XKeysymToKeycode(wm->display_, XK_Tab))){
 		Window w = get_next(wm->workspace[wm->wsnum], e->window);
-		XRaiseWindow(wm->display_, w);
-		XSetInputFocus(wm->display_, w, RevertToNone, CurrentTime);
-		char* temp = malloc(100);
-		memset(temp, 0, 100);
-		sprintf(temp, "Next Window %d", w);
-		log_msg(wm->log, temp);
-		free(temp);
+		if(w != 0){
+			XRaiseWindow(wm->display_, w);
+			XSetInputFocus(wm->display_, w, RevertToNone, CurrentTime);
+			char* temp = malloc(100);
+			memset(temp, 0, 100);
+			sprintf(temp, "Next Window %d", w);
+			log_msg(wm->log, temp);
+			free(temp);
+		}
 	}
 
 	XGrabButton(wm->display_,
