@@ -293,6 +293,7 @@ void qt_remove_win(quadtree *root, int w){
 	} else if(chld_num == 0 && prnt->w == 0 && prnt->prnt != NULL){
 		delete_tree(prnt);
 	}
+	augment_down(prnt);
 }
 window_pos *add_pos(pos_list_t *pos_list, window_pos pos){
 	pos_list->len+=1;
