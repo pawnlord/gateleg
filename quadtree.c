@@ -46,9 +46,6 @@ quadtree *get_spacial_tree(quadtree *tree, dir_t d, quadtree *origin){
 		new_tree = tree->chldrn[d.x+(!d.y)*2];
 	}
 	if(new_tree == NULL || new_tree == origin){
-		new_tree = tree->chldrn[(!d.x)+(!d.y)*2];
-	}
-	if(new_tree == NULL || new_tree == origin){
 		new_tree = tree->chldrn[(!d.x)+d.y*2];
 	}
 	return new_tree;

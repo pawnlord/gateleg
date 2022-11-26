@@ -66,7 +66,7 @@ void unframe(window_manager* wm, Window w);
 void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned int BORDER_WIDTH = 0;
 	static unsigned long BORDER_COLOR = 0x000000;
-	static unsigned long BG_COLOR = 0x1ff0000;
+	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
 	window_pos* l = add_window(wm->workspace[wm->wsnum], w);

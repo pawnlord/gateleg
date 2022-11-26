@@ -33,7 +33,12 @@ typedef struct{
 	unsigned long nir,bar;
 	unsigned char *prop_return;
 }get_property_t;
-
+typedef struct{
+	Atom type;
+	int fmt;
+	char* data;
+	int nelem;
+}set_property_t;
 int create_window_manager(window_manager* wm);
 void init_window_manager(window_manager* wm, Display* display);
 void destroy_window_manager(window_manager* wm);
