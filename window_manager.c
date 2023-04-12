@@ -69,6 +69,9 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 	static unsigned long BG_COLOR = 0x000000;
 	XWindowAttributes x_window_attrs;
 	XGetWindowAttributes(wm->display_, w, &x_window_attrs);
+	if(wmap_get(wm->clients_, w) != -1){
+		return;
+	}
 	window_pos* l = add_window(wm->workspace[wm->wsnum], w);
 	if(x_window_attrs.override_redirect == True){
 		log_msg(wm->log, "override called");
@@ -79,9 +82,6 @@ void frame(window_manager* wm, Window w, bool is_before_wm_created){
 		if(x_window_attrs.override_redirect || x_window_attrs.map_state != IsViewable){
 			return;
 		}
-	}
-	if(wmap_get(wm->clients_, w) != -1){
-		unframe(wm, w);
 	}
 	Window frame = XCreateSimpleWindow(
 			wm->display_,
@@ -318,11 +318,13 @@ void run_wm(window_manager* wm){
 				XMapRequestEvent* e = &(main_event.xmaprequest);
 				frame(wm, e->window, FALSE);
 				XMapWindow(wm->display_, e->window);
+
 				char* temp = malloc(100);
 				memset(temp, 0, 100);
 				sprintf(temp, "New Window: %d", e->window);
 				log_msg(wm->log, temp);
 				free(temp);
+
 				XRaiseWindow(wm->display_, e->window);
 				XSetInputFocus(wm->display_, e->window, RevertToNone, CurrentTime);
 				XGrabButton(wm->display_,
